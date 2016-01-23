@@ -136,7 +136,7 @@ list() {
 			REPO=${REPO%%/}
 			printf '%s%s%s\n' "`if ! $PORCELAIN; then
 				if [[ "$REPO" = "$ACTIVE" ]]; then
-					printf ' *\033[32m'
+					printf '* \033[32m'
 				else
 					printf '  '
 				fi

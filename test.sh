@@ -161,14 +161,14 @@ list_alias() {
 TESTS+=(list_porcelain)
 list_porcelain() {
 	./gp init a b c || return 1
-	./gp list -H | grep -q '^ \*' && return 2
-	./gp list --human-readable | grep -q '^ \*' && return 3
-	./gp list -p | grep -q '^ \*' && return 4
+	./gp list -H | grep -q '^\* ' && return 2
+	./gp list --human-readable | grep -q '^\* ' && return 3
+	./gp list -p | grep -q '^\* ' && return 4
 	./gp list --porcelain | grep -q '^ \*' && return 5
 	ln -s .gitparallel/a .git
-	./gp list -H | grep -q '^ \*' || return 6
-	./gp list --human-readable | grep -q '^ \*' || return 7
-	./gp list -p | grep -q '^ \*' && return 8
+	./gp list -H | grep -q '^\* ' || return 6
+	./gp list --human-readable | grep -q '^\* ' || return 7
+	./gp list -p | grep -q '^\* ' && return 8
 	./gp list --porcelain | grep -q '^ \*' && return 9
 	return 0
 }
