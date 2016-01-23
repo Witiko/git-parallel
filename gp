@@ -31,14 +31,14 @@ EOF
 
 # Print the version information.
 version() {
-	echo 'Git-parallel version 1.0.0'
+	echo 'Git-parallel version 1.0.1'
 }
 
 # Print help for a specific subcommand.
 help() {
 	# Guard against bad input.
 	if [[ ! -v USAGE[$1] && ! -v SYNOPSIS[$1] ]]; then
-		error 'There is no command `%s`.' "$1"
+		error "There is no command '%s'." "$1"
 		exit 1
 	fi
 
@@ -54,7 +54,7 @@ checkNames() {
 			exit 1
 		fi
 		if grep -q '[./]' <<<"$NAME"; then
-			error 'The name `%s` contains illegal characters (., /).' "$NAME"
+			error "The name '%s' contains illegal characters (., /)." "$NAME"
 			exit 2
 		fi
 	done
@@ -84,22 +84,24 @@ restore() {
 	rm .git &&
 	if [[ -n "$REMEMBERED" ]]; then
 		mv "$REMEMBERED"/.git .git &&
-		REMEMBERED=
-	fi &&
-
-	# Print additional information.
-	info 'Restored the original state of the `.git` directory.'
+		REMEMBERED= &&
+		# Print additional information.
+		info "Restored the original Git repository."
+	else
+		# Print additional information.
+		info "Removed the '.git' symlink."
+	fi
 }
 
 # == Subcommands ==
 
 SYNOPSIS[list]='gp {ls | list} [-p | --porcelain] [-H | --human-readable]'
 USAGE[list]=\
-'lists the available Git-parallel repositories. When the -p / --porcelain
+"lists the available Git-parallel repositories. When the -p / --porcelain
 option is specified or when the output of the command gets piped outside the
 terminal, a raw newline-terminated list is produced, ready to be used by the
-`gp do` command.  When the -H / --human-readable option is specified or when
-the output of the command stays in the terminal, a formatted list is produced.'
+'gp do' command.  When the -H / --human-readable option is specified or when
+the output of the command stays in the terminal, a formatted list is produced."
 SYNOPSIS[ls]="${SYNOPSIS[list]}"
 USAGE[ls]="${USAGE[list]}"
 
@@ -114,7 +116,7 @@ list() {
 			--porcelain)		PORCELAIN=true	;;
 			-H)									;&
 			--human-readable)	PORCELAIN=false	;;
-			*)					error 'An unexpected argument `%s`.' "$1"
+			*)					error "An unexpected argument '%s'." "$1"
 								exit 1			;;
 		esac
 		shift
@@ -175,7 +177,7 @@ init() {
 	! checkNames "${REPOS[@]}" && exit 2
 	for REPO in "${REPOS[@]}"; do
 		if [[ -d .gitparallel/"$REPO" ]]; then
-			error 'The Git-parallel repository `%s` already exists.' "$REPO"
+			error "The Git-parallel repository '%s' already exists." "$REPO"
 			exit 3
 		fi
 	done
@@ -193,11 +195,11 @@ init() {
 		if $MIGRATE; then
 			cp -r .git/ "$PATHNAME" &&
 			# Print additional information.
-			info "Migrated the active Git repository to \`$PATHNAME\`."
+			info "Migrated the active Git repository to '$PATHNAME'."
 		else
 			mkdir "$PATHNAME" &&
 			# Print additional information.
-			info "Initialized an empty Git-parallel repository in \`$PATHNAME\`."
+			info "Initialized an empty Git-parallel repository in '$PATHNAME'."
 		fi
 	done
 }
@@ -238,7 +240,7 @@ remove() {
 	! checkNames "${REPOS[@]}" && exit 2
 	for REPO in "${REPOS[@]}"; do
 		if [[ ! -d .gitparallel/"$REPO" ]]; then
-			error 'The Git-parallel repository `%s` does not exist.' "$REPO"
+			error "The Git-parallel repository '%s' does not exist." "$REPO"
 			exit 3
 		fi
 	done
@@ -265,10 +267,10 @@ EOF
 		if [[ "$REPO" = "$ACTIVE" ]]; then
 			rm .git
 			# Print additional information.
-			info 'Removed the active Git-parallel repository `%s`.' "$REPO"
+			info "Removed the active Git-parallel repository '%s'." "$REPO"
 		else
 			# Print additional information.
-			info 'Removed the Git-parallel repository `%s`.' "$REPO"
+			info "Removed the Git-parallel repository '%s'." "$REPO"
 		fi
 	done
 }
@@ -276,11 +278,11 @@ EOF
 SYNOPSIS[checkout]=\
 'gp {co | checkout} [-i | --init] [-m | --migrate] [-c | --clobber] [--] REPO'
 USAGE[checkout]=\
-'switches to the specified Git-parallel REPOsitory. When the -i / --init option
-is specified, an equivalent of the `gp init` command is performed beforehand.
-If there exists a `.git` directory that is not a Git-parallel symlink to and
+"switches to the specified Git-parallel REPOsitory. When the -i / --init option
+is specified, an equivalent of the 'gp init' command is performed beforehand.
+If there exists a '.git' directory that is not a Git-parallel symlink to and
 that would therefore be overriden by the switch, the -c / --clobber or the -m /
---migrate option is required.'
+--migrate option is required."
 SYNOPSIS[co]="${SYNOPSIS[checkout]}"
 USAGE[co]="${USAGE[checkout]}"
 
@@ -328,7 +330,7 @@ checkout() {
 	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && exit 2
 	! checkNames "$REPO" && exit 3
 	if [[ ! -d .gitparallel/"$REPO" ]] && ! $INIT; then
-		error 'The Git-parallel repository `%s` does not exist.' "$REPO"
+		error "The Git-parallel repository '%s' does not exist." "$REPO"
 		exit 4
 	fi
 
@@ -350,19 +352,19 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -c
 
 	# Print additional information.
 	if $INIT; then
-		info 'Switched to a new Git-parallel repository `%s`.' "$REPO"
+		info "Switched to a new Git-parallel repository '%s'." "$REPO"
 	else
-		info 'Switched to the Git-parallel repository `%s`.' "$REPO"
+		info "Switched to the Git-parallel repository '%s'." "$REPO"
 	fi
 }
 
 SYNOPSIS[do]='... | gp do [-f | --force] [--] COMMAND'
 USAGE[do]=\
-'switches to every Git-parallel repository that is received as a part of a
-newline-separated list on the standard input and executes `git COMMAND`. When
-`git COMMAND` exits with a non-zero exit code, the loop is interrupted
+"switches to every Git-parallel repository that is received as a part of a
+newline-separated list on the standard input and executes 'git COMMAND'. When
+'git COMMAND' exits with a non-zero exit code, the loop is interrupted
 prematurely, unless the -f / --force option is specified. After the loop has
-ended, the original Git repository is restored.'
+ended, the original Git repository is restored."
 
 do_cmd() {
 	REPOS=()
@@ -399,7 +401,7 @@ do_cmd() {
 	! checkNames "${REPOS[@]}" && exit 2
 	for REPO in "${REPOS[@]}"; do
 		if [[ ! -d .gitparallel/"$REPO" ]]; then
-			error 'The Git-parallel repository `%s` does not exist.' "$REPO"
+			error "The Git-parallel repository '%s' does not exist." "$REPO"
 			exit 3
 		fi
 	done
@@ -409,7 +411,7 @@ do_cmd() {
 	for REPO in "${REPOS[@]}"; do
 		if { ! checkout -- "$REPO" 1>&2 || ! git "${COMMAND[@]}"; } &&
 		! $FORCE; then
-			error 'The do command stopped prematurely at the Git-parallel repository `%s`.' "$REPO"
+			error "The do command ended prematurely at the Git-parallel repository '%s'." "$REPO"
 			restore 1>&2
 			exit 4
 		fi
