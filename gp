@@ -31,7 +31,7 @@ EOF
 
 # Print the version information.
 version() {
-	echo 'Git-parallel version 1.1.0'
+	echo 'Git-parallel version 1.1.1'
 }
 
 # Print help for a specific subcommand.
@@ -154,13 +154,13 @@ init() {
 	if $UPDATE_GITIGNORE; then
 		if [[ ! -e .gitignore ]]; then
 			printf '.gitparallel\n' >.gitignore
-			info "The '.gitignore' file was created."
+			info "Created a '.gitignore' file."
 		else
 			if [[ -e .gitignore ]] && ! grep -q '^\.gitparallel' <.gitignore; then
 				printf '.gitparallel\n' >>.gitignore
-				info "The '.gitignore' file was updated."
+				info "Updated the '.gitignore' file."
 			else
-				info "No update of the '.gitignore' file is necessary."
+				info "No update of the '.gitignore' file was necessary."
 			fi
 		fi
 	fi

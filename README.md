@@ -14,7 +14,7 @@ Have several Git repositories live inside a single directory.
 
 	$ gp init --update-gitignore
 	Created a '.gitparallel' directory in '/tmp/foobar'.
-	The '.gitignore' file was created.
+	Created a '.gitignore' file.
 
 	$ gp create repoA repoB
 	Created an empty Git-parallel repository 'repoA' in '/tmp/foobar'.
@@ -74,7 +74,7 @@ Have several Git repositories live inside a single directory.
 
 	$ gp init --follow-git --update-gitignore
 	Created a '.gitparallel' directory in '/tmp/foobar'.
-	The '.gitignore' file was updated.
+	Updated the '.gitignore' file.
 
 	$ gp checkout --create --migrate repoA
 	Migrated '/tmp/foobar/.git' to '/tmp/foobar/.gitparallel/repoA'.
