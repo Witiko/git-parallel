@@ -66,6 +66,7 @@ checkNames() {
 # Retrieve the nearest directory containing the directory $1 and change the
 # working directory to it.
 jumpToRoot() {
+	ORIGINAL_PWD="$PWD"
 	[[ -d "$1" ]] && return 0
 	while [[ $PWD != / ]]; do
 		if cd ..; then
@@ -74,7 +75,8 @@ jumpToRoot() {
 			return 1
 		fi
 	done
-	error "No directory '%s' was found in '%s' or its parents." "$1" "$PWD"
+	error "No directory '%s' was found in '%s' or its parents." "$1" \
+		"$ORIGINAL_PWD"
 	return 2
 }
 
@@ -242,29 +244,26 @@ create() {
 	done
 	
 	# Guard against bad input.
-	jumpToRoot .gitparallel || return 1
+	$MIGRATE && ! GIT_ROOT="`jumpToRoot .git && printf '%s\n' "$PWD"`" && exit 1
+	jumpToRoot .gitparallel || return 2
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
-		return 2
+		return 3
 	fi
-	! checkNames "${REPOS[@]}" && return 3
+	! checkNames "${REPOS[@]}" && return 4
 	for REPO in "${REPOS[@]}"; do
 		if [[ -d .gitparallel/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' already exists." "$REPO"
-			return 4
+			return 5
 		fi
 	done
-	if $MIGRATE && [[ ! -d .git || -L .git ]]; then
-		error 'There exists no Git repository to migrate.'
-		return 5
-	fi
 
 	# Perform the main routine.
 	for REPO in "${REPOS[@]}"; do
 		PATHNAME=.gitparallel/"$REPO" 
 		if $MIGRATE; then
-			cp -r .git/ "$PATHNAME" &&
-			info "Migrated '%s/.git' to '%s/%s'." "$PWD" "$PWD" "$PATHNAME"
+			cp -r "$GIT_ROOT"/.git/ "$PATHNAME" &&
+			info "Migrated '%s/.git' to '%s/%s'." "$GIT_ROOT" "$PWD" "$PATHNAME"
 		else
 			mkdir "$PATHNAME" &&
 			info "Created an empty Git-parallel repository '%s' in '%s'." \
@@ -420,7 +419,9 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 	fi
 
 	# Perform the main routine.
-	{ ! $CREATE || create `$MIGRATE && echo --migrate` -- "$REPO"; } &&
+	export OLDPWD && # Jump back to the original PWD for the `gp create` call.
+	{ ! $CREATE || (cd "$OLDPWD" && create `$MIGRATE &&
+		echo --migrate`	-- "$REPO"); } &&
 	rm -rf .git && ln -s .gitparallel/"$REPO" .git &&
 
 	# Print additional information.

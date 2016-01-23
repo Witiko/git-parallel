@@ -127,18 +127,20 @@ create_migrate() {
 	./gp init
 	./gp create -m a b c && return 1
 	./gp create --migrate a b c && return 2
-	mkdir .git
-	touch .git/foobar
-	./gp create -m a b c || return 3
-	[[ -e .gitparallel/a/foobar ]] || return 4
-	[[ -e .gitparallel/b/foobar ]] || return 5
-	[[ -e .gitparallel/c/foobar ]] || return 6
-	./gp create --migrate a b c && return 7
-	./gp create --migrate d e f || return 8
-	[[ -e .gitparallel/d/foobar ]] || return 9
-	[[ -e .gitparallel/e/foobar ]] || return 10
-	[[ -e .gitparallel/f/foobar ]] || return 11
-	./gp create -m d e f && return 12
+	mkdir .git foo || return 3
+	touch .git/foobar || return 4
+	cd foo || return 5
+	../gp init || return 6
+	../gp create -m a b c || return 7
+	[[ -e .gitparallel/a/foobar ]] || return 8
+	[[ -e .gitparallel/b/foobar ]] || return 9
+	[[ -e .gitparallel/c/foobar ]] || return 10
+	../gp create --migrate a b c && return 11
+	../gp create --migrate d e f || return 12
+	[[ -e .gitparallel/d/foobar ]] || return 13
+	[[ -e .gitparallel/e/foobar ]] || return 14
+	[[ -e .gitparallel/f/foobar ]] || return 15
+	../gp create -m d e f && return 16
 	return 0
 }
 
@@ -406,17 +408,19 @@ checkout_migrate() {
 	./gp init
 	./gp checkout --create -m a && return 1
 	./gp checkout --create --migrate a && return 2
+	mkdir .git foo || return 3
+	touch .git/foobar || return 4
+	cd foo || return 5
+	../gp init || return 6
+	../gp checkout --create -m a || return 7
+	[[ -e .gitparallel/a/foobar ]] || return 8
+	../gp checkout --create --migrate a && return 9
+	rm .git || return 10
 	mkdir .git
 	touch .git/foobar
-	./gp checkout --create -m a || return 3
-	[[ -e .gitparallel/a/foobar ]] || return 4
-	./gp checkout --create --migrate a && return 5
-	rm .git || return 6
-	mkdir .git
-	touch .git/foobar
-	./gp checkout --create --migrate b || return 7
+	../gp checkout --create --migrate b || return 7
 	[[ -e .gitparallel/b/foobar ]] || return 8
-	./gp checkout --create -m b && return 9
+	../gp checkout --create -m b && return 9
 	return 0
 }
 
