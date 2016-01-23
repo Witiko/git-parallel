@@ -339,7 +339,7 @@ checkout() {
 
 	# Guard against dubious input.
 	if { [[ -d .git ]] && ! activeRepository >/dev/null; } &&
-	! { $CLOBBER || $MIGRATE; }; then
+	! { $CLOBBER || { $CREATE && $MIGRATE; }; }; then
 		errcat <<-'EOF'
 There exists an active Git repository that is not a symlink to a Git-parallel
 repository. By switching to another Git-parallel repository, the contents of

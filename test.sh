@@ -213,6 +213,20 @@ checkout_create() {
 	return 0
 }
 
+### Test the correct handling of the -c / --create and -m / --migrate options.
+TESTS+=(checkout_create_migrate)
+checkout_create_migrate() {
+	./gp checkout a && return 1
+	./gp checkout --create a || return 2
+	rm .git
+	mkdir .git
+	./gp checkout b && return 3
+	./gp checkout --create b && return 4
+	./gp checkout --migrate b && return 5
+	./gp checkout --create --migrate b || return 6
+	return 0
+}
+
 ### Test the correct handling of empty input.
 TESTS+=(checkout_empty)
 checkout_empty() {
