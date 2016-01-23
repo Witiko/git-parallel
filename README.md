@@ -2,7 +2,7 @@
 
 [![Circle CI](https://img.shields.io/circleci/project/Witiko/git-parallel/master.svg)](https://circleci.com/gh/Witiko/git-parallel)
 
-Have several Git repositories living inside a single directory.
+Have several Git repositories live inside a single directory.
 
 ## Requirements
 

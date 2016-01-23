@@ -1,5 +1,5 @@
 #!/bin/bash
-# == Initial setup ==
+# == The initial setup ==
 export IFS=
 
 # == Helper functions ==
@@ -46,7 +46,7 @@ help() {
 	printf "\n\t%s\n\n%s\n" "${SYNOPSIS[$1]}" "${USAGE[$1]}"
 }
 
-# Check, if the repository names are admissible.
+# Check if the repository names are admissible.
 checkNames() {
 	for NAME; do
 		if [[ -z "$NAME" ]]; then
