@@ -143,24 +143,24 @@ list() {
 	fi
 }
 
-SYNOPSIS[init]='gp {i | init} [-m | --migrate] [--] REPO...'
-USAGE[init]=\
-'initializes new Git-parallel REPOsitories. When the -m / --migrate option is
+SYNOPSIS[create]='gp {cr | create} [-m | --migrate] [--] REPO...'
+USAGE[create]=\
+'creates new Git-parallel REPOsitories. When the -m / --migrate option is
 specified, the REPOSITORies are initialized with the contents of the currently
 active Git repository.'
-SYNOPSIS[i]="${SYNOPSIS[init]}"
-USAGE[i]="${USAGE[init]}"
+SYNOPSIS[cr]="${SYNOPSIS[create]}"
+USAGE[cr]="${USAGE[create]}"
 
-init() {
+create() {
 	REPOS=()
 	MIGRATE=false
 
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-m)								;&
-			--migrate)	MIGRATE=true		;;
-			--)			shift; break	    ;;
+			-m)							;&
+			--migrate)	MIGRATE=true	;;
+			--)			shift; break    ;;
 			*)			REPOS+=("$1")	;;
 		esac
 		shift
@@ -279,19 +279,19 @@ EOF
 }
 
 SYNOPSIS[checkout]=\
-'gp {co | checkout} [-i | --init] [-m | --migrate] [-c | --clobber] [--] REPO'
+'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] [--] REPO'
 USAGE[checkout]=\
 "switches to the specified Git-parallel REPOsitory. When the -i / --init option
 is specified, an equivalent of the 'gp init' command is performed beforehand.
 If there exists a '.git' directory that is not a Git-parallel symlink to and
-that would therefore be overriden by the switch, the -c / --clobber or the -m /
---migrate option is required."
+that would therefore be overriden by the switch, the -C / --clobber or the -m /
+migrate option is required."
 SYNOPSIS[co]="${SYNOPSIS[checkout]}"
 USAGE[co]="${USAGE[checkout]}"
 
 checkout() {
 	REPO=
-	INIT=false
+	CREATE=false
 	MIGRATE=false
 	CLOBBER=false
 
@@ -300,9 +300,9 @@ checkout() {
 		case "$1" in
 			-m)								;&
 			--migrate)	MIGRATE=true		;;
-			-i)								;&
-			--init)		INIT=true			;;
 			-c)								;&
+			--create)	CREATE=true			;;
+			-C)								;&
 			--clobber)	CLOBBER=true		;;
 			--)			shift; break	    ;;
 			 *)	if [[ -z "$REPO" ]]; then
@@ -332,7 +332,7 @@ checkout() {
 	# Guard against bad input.
 	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && exit 2
 	! checkNames "$REPO" && exit 3
-	if [[ ! -d .gitparallel/"$REPO" ]] && ! $INIT; then
+	if [[ ! -d .gitparallel/"$REPO" ]] && ! $CREATE; then
 		error "The Git-parallel repository '%s' does not exist." "$REPO"
 		exit 4
 	fi
@@ -343,18 +343,18 @@ checkout() {
 		errcat <<-'EOF'
 There exists an active Git repository that is not a symlink to a Git-parallel
 repository. By switching to another Git-parallel repository, the contents of
-your active Git repository WILL BE LOST! To approve the removal, specify the -c
+your active Git repository WILL BE LOST! To approve the removal, specify the -C
 / --clobber option.
 		EOF
 		exit 5
 	fi
 
 	# Perform the main routine.
-	{ ! $INIT || init `$MIGRATE && echo --migrate` -- "$REPO"; } &&
+	{ ! $CREATE || create `$MIGRATE && echo --migrate` -- "$REPO"; } &&
 	rm -rf .git && ln -s .gitparallel/"$REPO" .git &&
 
 	# Print additional information.
-	if $INIT; then
+	if $CREATE; then
 		info "Switched to a new Git-parallel repository '%s'." "$REPO"
 	else
 		info "Switched to the Git-parallel repository '%s'." "$REPO"
@@ -429,8 +429,8 @@ SUBCOMMAND=
 case "$1" in
 	ls)								;&
 	list)		SUBCOMMAND=list		;;
-	i)								;&
-	init)		SUBCOMMAND=init		;;
+	cr)								;&
+	create)		SUBCOMMAND=create	;;
 	rm)								;&
 	remove)		SUBCOMMAND=remove	;;
 	co)								;&
@@ -443,10 +443,6 @@ case "$1" in
 	--help)		usage; exit 0		;;
 	*)			usage; exit 1		;;
 esac
-
-# Retrieve the Git root and change the working directory, if it exists.
-GITROOT="`git rev-parse --show-toplevel 2>/dev/null`"
-[[ $? = 0 ]] && cd "$GITROOT"
 
 # Execute the subcommand.
 $SUBCOMMAND "${@:2}"

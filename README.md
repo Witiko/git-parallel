@@ -12,7 +12,7 @@ Have several Git repositories live inside a single directory.
 ## Examples
 ### Creating two empty Git-parallel repositories
 
-	$ gp init foo bar
+	$ gp create foo bar
 	Initialized an empty Git-parallel repository in '.gitparallel/foo'.
 	Initialized an empty Git-parallel repository in '.gitparallel/bar'.
 
@@ -64,7 +64,7 @@ Have several Git repositories live inside a single directory.
 	$ git init
 	Initialized empty Git repository in /tmp/foobar/.git/
 
-	$ gp checkout --init --migrate foo
+	$ gp checkout --create --migrate foo
 	Migrated the active Git repository to '.gitparallel/foo'.
 	Switched to a new Git-parallel repository 'foo'.
 
