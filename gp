@@ -67,13 +67,6 @@ activeRepository() {
     sed   's#^\.gitparallel/##'	<<<"$LINK"
 }
 
-# Prepare the filesystem infrastructure.
-prepare() {
-	{ [[ -d .gitparallel ]] || mkdir .gitparallel; } &&
-	{ { [[ -e .gitignore ]] && grep -q '^\.gitparallel$' <.gitignore; } ||
-		echo .gitparallel >>.gitignore; }
-}
-
 # Remembering the current repository consists of pushing the contents of the
 # .git symlink into the stack.
 REMEMBERED=
@@ -192,7 +185,9 @@ init() {
 	fi
 
 	# Perform the main routine.
-	prepare &&
+	if [[ ! -d .gitparallel ]]; then
+		mkdir .gitparallel
+	fi &&
 	for REPO in "${REPOS[@]}"; do
 		PATHNAME=.gitparallel/"$REPO" 
 		if $MIGRATE; then
@@ -350,7 +345,6 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -c
 	fi
 
 	# Perform the main routine.
-	prepare &&
 	{ ! $INIT || init `$MIGRATE && echo --migrate` -- "$REPO"; } &&
 	rm -rf .git && ln -s .gitparallel/"$REPO" .git &&
 
