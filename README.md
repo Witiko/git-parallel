@@ -12,77 +12,113 @@ Have several Git repositories live inside a single directory.
 ## Examples
 ### Creating two empty Git-parallel repositories
 
-	$ gp create foo bar
-	Initialized an empty Git-parallel repository in '.gitparallel/foo'.
-	Initialized an empty Git-parallel repository in '.gitparallel/bar'.
+	$ gp init --update-gitignore
+	Created a '.gitparallel' directory in '/tmp/foobar'.
+	The '.gitignore' file was created.
+
+	$ gp create repoA repoB
+	Created an empty Git-parallel repository 'repoA' in '/tmp/foobar'.
+	Created an empty Git-parallel repository 'repoB' in '/tmp/foobar'.
 
 	$ tree -a
 	.
 	├── .gitignore
 	└── .gitparallel
-	    ├── foo
-	    └── bar
+		├── repoA
+		└── repoB
 
 	3 directories, 1 file
 
 	$ gp ls | gp do init
-	Switched to the Git-parallel repository 'foo'.
-	Initialized empty Git repository in /tmp/xyz/.gitparallel/foo/
-	Switched to the Git-parallel repository 'bar'.
-	Initialized empty Git repository in /tmp/xyz/.gitparallel/bar/
-	Removed the '.git' symlink.
+	Switched to the Git-parallel repository 'repoA'.
+	Initialized empty Git repository in /tmp/foobar/.gitparallel/repoA/
+	Switched to the Git-parallel repository 'repoB'.
+	Initialized empty Git repository in /tmp/foobar/.gitparallel/repoB/
+	Removed the '.git' symlink from '/tmp/foobar'.
 
 	$ gp ls | gp do add .gitignore
-	Switched to the Git-parallel repository 'foo'.
-	Switched to the Git-parallel repository 'bar'.
-	Removed the '.git' symlink.
+	Switched to the Git-parallel repository 'repoA'.
+	Switched to the Git-parallel repository 'repoB'.
+	Removed the '.git' symlink from '/tmp/foobar'.
 
 	$ gp ls | gp do commit -m 'initial commit.'
-	Switched to the Git-parallel repository 'foo'.
-	[master (root-commit) 00b120f] initial commit.
+	Switched to the Git-parallel repository 'repoA'.
+	[master (root-commit) b55b9c6] initial commit.
 	 1 file changed, 1 insertion(+)
 	 create mode 100644 .gitignore
-	Switched to the Git-parallel repository 'bar'.
-	[master (root-commit) 00b120f] initial commit.
+	Switched to the Git-parallel repository 'repoB'.
+	[master (root-commit) b55b9c6] initial commit.
 	 1 file changed, 1 insertion(+)
 	 create mode 100644 .gitignore
-	Removed the '.git' symlink.
+	Removed the '.git' symlink from '/tmp/foobar'.
 
-	$ gp checkout foo
-	Switched to the Git-parallel repository 'foo'.
+	$ gp checkout repoA
+	Switched to the Git-parallel repository 'repoA'.
 
 	$ ls -al
 	total 52
-	drwxr-xr-x  3 witiko witiko  4096 Jan 23 06:50 .
-	drwxrwxrwt 70 root   root   36864 Jan 23 06:50 ..
-	lrwxrwxrwx  1 witiko witiko    21 Jan 23 06:50 .git -> .gitparallel/foo
-	-rw-r--r--  1 witiko witiko    13 Jan 23 06:47 .gitignore
-	drwxr-xr-x  4 witiko witiko  4096 Jan 23 06:47 .gitparallel
+	drwxr-xr-x   3 witiko witiko  4096 led 23 19:18 .
+	drwxrwxrwt 181 root   root   36864 led 23 19:18 ..
+	lrwxrwxrwx   1 witiko witiko    18 led 23 19:18 .git -> .gitparallel/repoA
+	-rw-r--r--   1 witiko witiko    13 led 23 19:17 .gitignore
+	drwxr-xr-x   4 witiko witiko  4096 led 23 19:17 .gitparallel
+
+	$ git log
+	commit b55b9c69dce35cc0897cbf51d262fbf21417675a
+	Author: witiko <witiko@mail.muni.cz>
+	Date:   Sat Jan 23 19:34:08 2016 +0100
+
+	    initial commit.
 
 ### Migrating a Git repository to Git-parallel
 
-	$ git init
-	Initialized empty Git repository in /tmp/foobar/.git/
+	$ gp init --follow-git --update-gitignore
+	Created a '.gitparallel' directory in '/tmp/foobar'.
+	The '.gitignore' file was updated.
 
-	$ gp checkout --create --migrate foo
-	Migrated the active Git repository to '.gitparallel/foo'.
-	Switched to a new Git-parallel repository 'foo'.
+	$ gp checkout --create --migrate repoA
+	Migrated '/tmp/foobar/.git' to '/tmp/foobar/.gitparallel/repoA'.
+	Switched to a new Git-parallel repository 'repoA'.
 
 	$ ls -al
 	total 52
-	drwxr-xr-x  3 witiko witiko  4096 Jan 23 06:50 .
-	drwxrwxrwt 70 root   root   36864 Jan 23 06:50 ..
-	lrwxrwxrwx  1 witiko witiko    21 Jan 23 06:50 .git -> .gitparallel/foo
-	-rw-r--r--  1 witiko witiko    13 Jan 23 06:47 .gitignore
-	drwxr-xr-x  4 witiko witiko  4096 Jan 23 06:47 .gitparallel
+	drwxr-xr-x   3 witiko witiko  4096 led 23 19:22 .
+	drwxrwxrwt 181 root   root   36864 led 23 19:22 ..
+	lrwxrwxrwx   1 witiko witiko    18 led 23 19:22 .git -> .gitparallel/repoA
+	-rw-r--r--   1 witiko witiko    13 led 23 19:22 .gitignore
+	drwxr-xr-x   3 witiko witiko  4096 led 23 19:22 .gitparallel
 
-	$ gp rm foo
+### Removing a Git-parallel repository
+
+	$ gp ls
+	  repoA
+	* repoB
+
+	$ gp rm repoA
+	Removed the Git-parallel repository 'repoA' from '/tmp/foobar'.
+
+	$ ls
+	total 52
+	drwxr-xr-x   3 witiko witiko  4096 Jan 23 19:26 .
+	drwxrwxrwt 181 root   root   36864 Jan 23 19:26 ..
+	lrwxrwxrwx   1 witiko witiko    18 Jan 23 19:26 .git -> .gitparallel/repoB
+	-rw-r--r--   1 witiko witiko    13 Jan 23 19:22 .gitignore
+	drwxr-xr-x   3 witiko witiko  4096 Jan 23 19:26 .gitparallel
+
+	$ gp rm repoB
 	The Git-parallel repository
 
-		foo
+		repoB
 
 	is active. By removing it, the contents of your active Git repository WILL BE
 	LOST! To approve the removal, specify the -f / --force option.
 
-	$ gp rm --force foo
-	Removed the active Git-parallel repository 'foo'.
+	$ gp rm --force repoB
+	Removed the active Git-parallel repository 'repoB' from '/tmp/foobar'.
+
+	$ ls
+	total 52
+	drwxr-xr-x   3 witiko witiko  4096 Jan 23 19:27 .
+	drwxrwxrwt 181 root   root   36864 Jan 23 19:27 ..
+	-rw-r--r--   1 witiko witiko    13 Jan 23 19:22 .gitignore
+	drwxr-xr-x   2 witiko witiko  4096 Jan 23 19:27 .gitparallel

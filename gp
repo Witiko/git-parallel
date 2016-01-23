@@ -31,7 +31,7 @@ EOF
 
 # Print the version information.
 version() {
-	echo 'Git-parallel version 1.0.1'
+	echo 'Git-parallel version 1.1.0'
 }
 
 # Print help for a specific subcommand.
@@ -54,13 +54,28 @@ checkNames() {
 	for NAME; do
 		if [[ -z "$NAME" ]]; then
 			error 'The Git-parallel repository names must be non-empty.'
-			exit 1
+			return 1
 		fi
 		if grep -q '[./]' <<<"$NAME"; then
 			error "The name '%s' contains illegal characters (., /)." "$NAME"
-			exit 2
+			return 2
 		fi
 	done
+}
+
+# Retrieve the nearest directory containing the directory $1 and change the
+# working directory to it.
+jumpToRoot() {
+	[[ -d "$1" ]] && return 0
+	while [[ $PWD != / ]]; do
+		if cd ..; then
+			[[ -d "$1" ]] && return 0
+		else
+			return 1
+		fi
+	done
+	error "No directory '%s' was found in '%s' or its parents." "$1" "$PWD"
+	return 2
 }
 
 # Retrieve the currently active repository.
@@ -88,15 +103,66 @@ restore() {
 	if [[ -n "$REMEMBERED" ]]; then
 		mv "$REMEMBERED"/.git .git &&
 		REMEMBERED= &&
-		# Print additional information.
-		info "Restored the original Git repository."
+		info "Restored the original Git repository in '%s'." "$PWD"
 	else
-		# Print additional information.
-		info "Removed the '.git' symlink."
+		info "Removed the '.git' symlink from '%s'." "$PWD"
 	fi
 }
 
 # == Subcommands ==
+
+SYNOPSIS[init]='gp {i | init} [-F | --follow-git] [-u | --update-gitignore]'
+USAGE[init]=\
+"creates a new '.gitparallel' directory that is going to serve as the root
+directory for the remaining 'gp' commands. When the -F / --follow-git option is
+specified, the command will create the '.gitparallel' directory next to the
+current Git repository root rather than inside the current working directory.
+When the -u / --update-gitignore option is specified, an entry for the
+'.gitparallel' will be added to the '.gitignore' file."
+SYNOPSIS[i]="${SYNOPSIS[init]}"
+USAGE[i]="${USAGE[init]}"
+
+init() {
+	FOLLOW_GIT=false
+	UPDATE_GITIGNORE=false
+
+	# Collect the options.
+	while [[ $# > 0 ]]; do
+		case "$1" in
+			-F)											;&
+			--follow-git)		FOLLOW_GIT=true			;;
+			-u)											;&
+			--update-gitignore)	UPDATE_GITIGNORE=true	;;
+			*)					error "An unexpected argument '%s'." "$1"
+								return 1				;;
+		esac
+		shift
+	done
+
+	# Guard against bad input.
+	$FOLLOW_GIT && ! jumpToRoot .git && return 1
+	if [[ -d .gitparallel ]]; then
+		error "There already exists a '.gitparallel' directory in '%s'." "$PWD"
+		return 2
+	fi
+
+	# Perform the main routine.
+	mkdir .gitparallel &&
+	info "Created a '.gitparallel' directory in '%s'." "$PWD" &&
+	if $UPDATE_GITIGNORE; then
+		if [[ ! -e .gitignore ]]; then
+			printf '.gitparallel\n' >.gitignore
+			info "The '.gitignore' file was created."
+		else
+			if [[ -e .gitignore ]] && ! grep -q '^\.gitparallel' <.gitignore; then
+				printf '.gitparallel\n' >>.gitignore
+				info "The '.gitignore' file was updated."
+			else
+				info "No update of the '.gitignore' file is necessary."
+			fi
+		fi
+	fi
+}
 
 SYNOPSIS[list]='gp {ls | list} [-p | --porcelain] [-H | --human-readable]'
 USAGE[list]=\
@@ -120,10 +186,13 @@ list() {
 			-H)									;&
 			--human-readable)	PORCELAIN=false	;;
 			*)					error "An unexpected argument '%s'." "$1"
-								exit 1			;;
+								return 1			;;
 		esac
 		shift
 	done
+
+	# Guard against bad input.
+	jumpToRoot .gitparallel || return 1
 
 	# Perform the main routine.
 	if [[ -d .gitparallel ]]; then
@@ -173,36 +242,33 @@ create() {
 	done
 	
 	# Guard against bad input.
+	jumpToRoot .gitparallel || return 1
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
-		exit 1
+		return 2
 	fi
-	! checkNames "${REPOS[@]}" && exit 2
+	! checkNames "${REPOS[@]}" && return 3
 	for REPO in "${REPOS[@]}"; do
 		if [[ -d .gitparallel/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' already exists." "$REPO"
-			exit 3
+			return 4
 		fi
 	done
 	if $MIGRATE && [[ ! -d .git || -L .git ]]; then
 		error 'There exists no Git repository to migrate.'
-		exit 4
+		return 5
 	fi
 
 	# Perform the main routine.
-	if [[ ! -d .gitparallel ]]; then
-		mkdir .gitparallel
-	fi &&
 	for REPO in "${REPOS[@]}"; do
 		PATHNAME=.gitparallel/"$REPO" 
 		if $MIGRATE; then
 			cp -r .git/ "$PATHNAME" &&
-			# Print additional information.
-			info "Migrated the active Git repository to '$PATHNAME'."
+			info "Migrated '%s/.git' to '%s/%s'." "$PWD" "$PWD" "$PATHNAME"
 		else
 			mkdir "$PATHNAME" &&
-			# Print additional information.
-			info "Initialized an empty Git-parallel repository in '$PATHNAME'."
+			info "Created an empty Git-parallel repository '%s' in '%s'." \
+				"$REPO" "$PWD"
 		fi
 	done
 }
@@ -236,15 +302,17 @@ remove() {
 	done
 	
 	# Guard against bad input.
+	jumpToRoot .gitparallel || return 1
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
-		exit 1
+		return 2
 	fi
-	! checkNames "${REPOS[@]}" && exit 2
+	! checkNames "${REPOS[@]}" && return 3
 	for REPO in "${REPOS[@]}"; do
 		if [[ ! -d .gitparallel/"$REPO" ]]; then
-			error "The Git-parallel repository '%s' does not exist." "$REPO"
-			exit 3
+			error "The Git-parallel repository '%s' does not exist in '%s'." \
+				"$REPO" "$PWD"
+			return 4
 		fi
 	done
 
@@ -260,7 +328,7 @@ The Git-parallel repository
 is active. By removing it, the contents of your active Git repository WILL BE
 LOST! To approve the removal, specify the -f / --force option.
 EOF
-			exit 4
+			return 5
 		fi
 	done
 
@@ -269,11 +337,11 @@ EOF
 		rm -rf .gitparallel/"$REPO" &&
 		if [[ "$REPO" = "$ACTIVE" ]]; then
 			rm .git
-			# Print additional information.
-			info "Removed the active Git-parallel repository '%s'." "$REPO"
+			info "Removed the active Git-parallel repository '%s' from '%s'." \
+				"$REPO" "$PWD"
 		else
-			# Print additional information.
-			info "Removed the Git-parallel repository '%s'." "$REPO"
+			info "Removed the Git-parallel repository '%s' from '%s'." \
+				"$REPO" "$PWD"
 		fi
 	done
 }
@@ -309,7 +377,7 @@ checkout() {
 					REPO="$1"
 				else
 					error 'More than one Git-parallel repository was specified.'
-					exit 1
+					return 1
 				fi							;;
 		esac
 		shift
@@ -318,23 +386,25 @@ checkout() {
 	# Collect the repository.
 	if [[ $# > 1 ]]; then
 		error 'More than one Git-parallel repository was specified.'
-		exit 1
+		return 1
 	fi
 	if [[ $# = 1 ]]; then
 		if [[ -z "$REPO" ]]; then
 			REPO="$1"
 		else
 			error 'More than one Git-parallel repository was specified.'
-			exit 1
+			return 1
 		fi
 	fi
 
 	# Guard against bad input.
-	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && exit 2
-	! checkNames "$REPO" && exit 3
+	jumpToRoot .gitparallel || return 2
+	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && return 3
+	! checkNames "$REPO" && return 4
 	if [[ ! -d .gitparallel/"$REPO" ]] && ! $CREATE; then
-		error "The Git-parallel repository '%s' does not exist." "$REPO"
-		exit 4
+		error "The Git-parallel repository '%s' does not exist in '%s'." \
+			"$REPO" "$PWD"
+		return 5
 	fi
 
 	# Guard against dubious input.
@@ -346,7 +416,7 @@ repository. By switching to another Git-parallel repository, the contents of
 your active Git repository WILL BE LOST! To approve the removal, specify the -C
 / --clobber option.
 		EOF
-		exit 5
+		return 6
 	fi
 
 	# Perform the main routine.
@@ -365,7 +435,7 @@ SYNOPSIS[do]='... | gp do [-f | --force] [--] COMMAND'
 USAGE[do]=\
 "switches to every Git-parallel repository that is received as a part of a
 newline-separated list on the standard input and executes 'git COMMAND'. When
-'git COMMAND' exits with a non-zero exit code, the loop is interrupted
+'git COMMAND' returns with a non-zero exit code, the loop is interrupted
 prematurely, unless the -f / --force option is specified. After the loop has
 ended, the original Git repository is restored."
 
@@ -397,26 +467,28 @@ do_cmd() {
 	done
 
 	# Guard against bad input.
+	jumpToRoot .gitparallel || return 1
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
-		exit 1
+		return 2
 	fi
-	! checkNames "${REPOS[@]}" && exit 2
+	! checkNames "${REPOS[@]}" && return 3
 	for REPO in "${REPOS[@]}"; do
 		if [[ ! -d .gitparallel/"$REPO" ]]; then
-			error "The Git-parallel repository '%s' does not exist." "$REPO"
-			exit 3
+			error "The Git-parallel repository '%s' does not exist in '%s'." \
+				"$REPO" "$PWD"
+			return 4
 		fi
 	done
 
 	# Perform the main routine.
 	remember 1>&2 && {
 	for REPO in "${REPOS[@]}"; do
-		if { ! checkout -- "$REPO" 1>&2 || ! git "${COMMAND[@]}"; } &&
-		! $FORCE; then
-			error "The do command ended prematurely at the Git-parallel repository '%s'." "$REPO"
-			restore 1>&2
-			exit 4
+		! checkout -- "$REPO" 1>&2 && ! $FORCE && break
+		if git "${COMMAND[@]}"; then :; else
+			error "The command 'git %s' failed with an exit code of $?." \
+				"${COMMAND[@]}"
+			! $FORCE && restore 1>&2 && return 5
 		fi
 	done
 	restore 1>&2; }
@@ -429,6 +501,8 @@ SUBCOMMAND=
 case "$1" in
 	ls)								;&
 	list)		SUBCOMMAND=list		;;
+	i)								;&
+	init)		SUBCOMMAND=init		;;
 	cr)								;&
 	create)		SUBCOMMAND=create	;;
 	rm)								;&
