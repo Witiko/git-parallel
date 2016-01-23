@@ -36,10 +36,13 @@ version() {
 
 # Print help for a specific subcommand.
 help() {
+	# Guard against empty input.
+	[[ $# = 0 ]] && usage && return 0
+
 	# Guard against bad input.
 	if [[ ! -v USAGE[$1] && ! -v SYNOPSIS[$1] ]]; then
 		error "There is no command '%s'." "$1"
-		exit 1
+		return 1
 	fi
 
 	# Perform the main routine.
