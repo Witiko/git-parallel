@@ -1,15 +1,16 @@
-# Introduction
+# Git-parallel
 
-Git-parallel is a unix shell script that makes it possible to have several Git
-repositories living inside a single directory.
+[![Circle CI](https://img.shields.io/circleci/project/Witiko/git-parallel/master.svg)](https://circleci.com/gh/Witiko/git-parallel)
 
-# Requirements
+Have several Git repositories living inside a single directory.
+
+## Requirements
 
  * [Git](http://git-scm.com/)
  * [Bash 4+](https://www.gnu.org/software/bash/)
 
-# Getting started
-## Creating two empty Git-parallel repositories
+## Examples
+### Creating two empty Git-parallel repositories
 
 	$ gp init foo bar
 	Initialized an empty Git-parallel repository in `.gitparallel/foo`.
@@ -58,7 +59,7 @@ repositories living inside a single directory.
 	-rw-r--r--  1 witiko witiko    13 Jan 23 06:47 .gitignore
 	drwxr-xr-x  4 witiko witiko  4096 Jan 23 06:47 .gitparallel
 
-## Migrating a Git repository to Git-parallel
+### Migrating a Git repository to Git-parallel
 
 	$ git init
 	Initialized empty Git repository in /tmp/foobar/.git/
