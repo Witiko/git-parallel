@@ -6,7 +6,6 @@ Have several Git repositories live inside a single directory.
 
 ## Requirements
 
- * [Git](http://git-scm.com/)
  * [Bash 4+](https://www.gnu.org/software/bash/)
 
 ## Examples
