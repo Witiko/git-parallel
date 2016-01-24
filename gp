@@ -348,7 +348,7 @@ EOF
 SYNOPSIS[checkout]=\
 'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] [--] REPO'
 USAGE[checkout]=\
-"switches to the specified Git-parallel REPOsitory. When the -i / --init option
+"switches to the specified Git-parallel REPOsitory. When the -c / --create option
 is specified, an equivalent of the 'gp init' command is performed beforehand.
 If there exists a '.git' directory that is not a Git-parallel symlink to and
 that would therefore be overriden by the switch, the -C / --clobber or the -m /
