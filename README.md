@@ -105,12 +105,9 @@ Have several Git repositories live inside a single directory.
 	drwxr-xr-x   3 witiko witiko  4096 Jan 23 19:26 .gitparallel
 
 	$ gp rm repoB
-	The Git-parallel repository
-
-		repoB
-
-	is active. By removing it, the contents of your active Git repository WILL BE
-	LOST! To approve the removal, specify the -f / --force option.
+	The Git-parallel repository 'repoB' is active. By removing it, the contents
+	of your active Git repository WILL BE LOST! To approve the removal, specify
+	the -f / --force option.
 
 	$ gp rm --force repoB
 	Removed the active Git-parallel repository 'repoB' from '/tmp/foobar'.

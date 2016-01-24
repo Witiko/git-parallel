@@ -6,8 +6,12 @@ export IFS=
 
 # Wrap the input to fit neatly to the terminal.
 wrap() {
-	if [[ -t 1 ]] && hash fold 2>&-; then
-		fold
+ 	if [[ -t 1 ]] && hash fmt 2>&-; then
+		fmt -u -w $(if hash tput 2>&- && [[ "`tput cols`" -lt 80 ]]; then
+			echo `tput cols`
+		else
+			echo 80
+		fi)
 	else
 		cat
 	fi
@@ -15,8 +19,9 @@ wrap() {
 
 # Emit info or warning messages.
 info() { printf "$1\n" "${@:2}" | wrap; }
+infocat() { wrap; }
 error() { info "${@}" 1>&2; }
-errcat() { wrap 1>&2; }
+errcat() { infocat 1>&2; }
 
 # Print the usage information.
 usage() {
@@ -27,23 +32,26 @@ Usage:
 	for CMD in "${SYNOPSES[@]}"; do
 		(IFS=' '; for INDEX in $(eval echo '${!'`echo "SYNOPSIS_$CMD"`'[@]}'); do
 			SYNOPSIS=$(eval echo '${'`echo "SYNOPSIS_$CMD"`"[$INDEX]}")
-			printf '\t%s\n' "$SYNOPSIS"
+			printf '  %s\n' "$SYNOPSIS"
 		done)
-	done | sort | uniq
-	cat <<'EOF'
+	done | sort | uniq | while read COMMAND; do
+		info "$COMMAND"
+	done
+	(cat <<'EOF'
 
 To see more information about any individual COMMAND, execute
 
-	gp help COMMAND
+  gp help COMMAND
 
-Report bugs to: <witiko@mail.muni.cz>
-Git-parallel home page: <http://github.com/witiko/Git-parallel>
 EOF
+	) | infocat
+	info 'Report bugs to: <witiko@mail.muni.cz>'
+	info 'Git-parallel home page: <http://github.com/witiko/Git-parallel>'
 }
 
 # Print the version information.
 version() {
-	echo 'Git-parallel version 1.2.0'
+	info 'Git-parallel version 1.2.0'
 }
 
 # Print help for a specific subcommand.
@@ -61,8 +69,9 @@ help() {
 	(IFS=' '; for INDEX in $(eval echo '${!'`echo "SYNOPSIS_$1"`'[@]}'); do
 		SYNOPSIS=$(eval echo '${'`echo "SYNOPSIS_$1"`"[$INDEX]}")
 		USAGE=$(eval echo '${'`echo "USAGE_$1"`"[$INDEX]}")
-		printf "\n\t%s\n\n%s\n" "$SYNOPSIS" "$USAGE"
-	done)
+		info '\n  %s\n' "$SYNOPSIS"
+		info '%s' "$USAGE"
+	done; echo)
 }
 
 # Check if the repository names are admissible.
