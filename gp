@@ -513,31 +513,35 @@ do_cmd() {
 			return 4
 		fi
 	done
-	if [[ -e .gitparallel/.lock ]]; then
+
+  # Acquire the lock.
+  LOCK=.gitparallel/.lock
+  if ! (set -o noclobber; echo "$$" >"$LOCK") 2>&-; then
 		errcat <<-EOF
-There appears to be another 'gp do' command underway. If you are certain this
-is not the case, then remove the file '.lock' from '$PWD/.gitparallel'.
+There appears to be another 'gp do' command underway ran by a process with the
+PID `cat "$LOCK"`. If you are certain this is not the case, then remove the
+file '$LOCK' from '$PWD' and rerun the command.
 		EOF
 		return 5
 	fi
 
+  # Schedule the release of the lock.
+  trap "rm '$LOCK'" EXIT
+
 	# Perform the main routine.
 	LOOP_BROKEN=false
-	## Lock and remember the state of the repository.
-	touch .gitparallel/.lock && {
 	remember 1>&2 && {
 	for REPO in "${REPOS[@]}"; do
 		! checkout -- "$REPO" 1>&2 && ! $FORCE && break
 		if git "${COMMAND[@]}"; then :; else
+      EXIT_CODE=$?
 			COMMAND_STRING="${COMMAND[@]}"
-			error "The command 'git %s' failed with an exit code of $?." \
-				"$COMMAND_STRING"
+			error "The command 'git %s' failed with an exit code of %d." \
+				"$COMMAND_STRING" $EXIT_CODE
 			! $FORCE && LOOP_BROKEN=true && break
 		fi
 	done
-	## Restore and unlock the repository.
-	restore 1>&2; } }
-	rm .gitparallel/.lock
+	restore 1>&2; }
 	! $LOOP_BROKEN || return 6
 }
 
