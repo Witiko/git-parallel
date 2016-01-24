@@ -3,9 +3,20 @@
 export IFS=
 
 # == Helper functions ==
-info() { printf "$1\n" "${@:2}"; }
+
+# Wrap the input to fit neatly to the terminal.
+wrap() {
+	if [[ -t 1 ]] && hash fold 2>&-; then
+		fold
+	else
+		cat
+	fi
+}
+
+# Emit info or warning messages.
+info() { printf "$1\n" "${@:2}" | wrap; }
 error() { info "${@}" 1>&2; }
-errcat() { cat 1>&2; }
+errcat() { wrap 1>&2; }
 
 # Print the usage information.
 usage() {
@@ -188,9 +199,12 @@ the output of the command stays in the terminal, a formatted list is produced.")
 SYNOPSIS_ls=("${SYNOPSIS_list[@]}")
 USAGE_ls=("${USAGE_list[@]}")
 
-if [[ -t 1 ]]; then PIPED=false; else PIPED=true; fi
 list() {
-	PORCELAIN=$PIPED
+	if [[ -t 1 ]]; then
+		PORCELAIN=false
+	else
+		PORCELAIN=true
+	fi
 
 	# Collect the options.
 	while [[ $# > 0 ]]; do
@@ -323,12 +337,9 @@ remove() {
 	for REPO in "${REPOS[@]}"; do
 		if [[ "$REPO" = "$ACTIVE" ]] && ! $FORCE; then
 			errcat <<EOF
-The Git-parallel repository
-
-	$REPO
-
-is active. By removing it, the contents of your active Git repository WILL BE
-LOST! To approve the removal, specify the -f / --force option.
+The Git-parallel repository	'$REPO' is active. By removing it, the contents of
+your active Git repository WILL BE LOST! To approve the removal, specify the -f
+/ --force option.
 EOF
 			return 5
 		fi
@@ -426,15 +437,15 @@ SYNOPSIS_do=(
 'gp do [-f | --force] REPO... -- COMMAND'
 '... | gp do [-f | --force] COMMAND')
 USAGE_do=(
-"switches to every specified Git-parallel REPOsitory and executes 'git
-COMMAND'. When 'git COMMAND' exits with a non-zero exit code, the command is
+"switches to every Git-parallel REPOsitory and executes 'git COMMAND'. When
+'git COMMAND' exits with a non-zero exit code, the 'gp do' command is
 interrupted prematurely, unless the -f / --force option is specified. After the
 command has ended, the original Git repository is restored."
 "switches to every Git-parallel repository that is received as a part of a
 newline-separated list on the standard input and executes 'git COMMAND'. When
-'git COMMAND' exits with a non-zero exit code, the command is interrupted
-prematurely, unless the -f / --force option is specified. After the command has
-ended, the original Git repository is restored.")
+'git COMMAND' exits with a non-zero exit code, the 'gp do' command is
+interrupted prematurely, unless the -f / --force option is specified. After the
+command has ended, the original Git repository is restored.")
 
 do_cmd() {
 	REPOS=()
