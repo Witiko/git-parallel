@@ -9,7 +9,7 @@ Have several Git repositories live inside a single directory.
  * [Bash 4+](https://www.gnu.org/software/bash/)
 
 ## Examples
-### Creating two empty Git-parallel repositories
+### Creating two empty `gp` repositories
 
 	$ gp init --update-gitignore
 	Created a '.gitparallel' directory in '/tmp/foobar'.
@@ -69,7 +69,7 @@ Have several Git repositories live inside a single directory.
 
 	    initial commit.
 
-### Migrating a Git repository to Git-parallel
+### Migrating a Git repository to `gp`
 
 	$ gp init --follow-git --update-gitignore
 	Created a '.gitparallel' directory in '/tmp/foobar'.
@@ -87,7 +87,7 @@ Have several Git repositories live inside a single directory.
 	-rw-r--r--   1 witiko witiko    13 led 23 19:22 .gitignore
 	drwxr-xr-x   3 witiko witiko  4096 led 23 19:22 .gitparallel
 
-### Removing a Git-parallel repository
+### Removing a `gp` repository
 
 	$ gp ls
 	  repoA
