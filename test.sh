@@ -472,6 +472,17 @@ do_restore() {
 	return 0
 }
 
+### Test the command's locking mechanism.
+TESTS+=(do_lock)
+do_lock() {
+	./gp init
+	./gp create a b c || return 1
+	./gp list | ./gp do init || return 2
+	touch .gitparallel/.lock || return 3
+	./gp list | ./gp do init && return 4
+	return 0
+}
+
 # == The main routine ==
 LOG="`mktemp`" &&
 for TEST in "${TESTS[@]}"; do
