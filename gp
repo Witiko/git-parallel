@@ -53,12 +53,17 @@ help() {
 checkNames() {
 	for NAME; do
 		if [[ -z "$NAME" ]]; then
-			error 'The Git-parallel repository names must be non-empty.'
+			error 'Git-parallel repository names must be non-empty.'
 			return 1
 		fi
 		if [[ "$NAME" =~ [./] ]]; then
-			error "The name '%s' contains illegal characters (., /)." "$NAME"
+			error "The repository name '%s' contains illegal characters (., /)." \
+				"$NAME"
 			return 2
+		fi
+		if [[ "$NAME" =~ ^- ]]; then
+			error "Git-parallel repository names may not start with a hyphen (-)."
+			return 3
 		fi
 	done
 }
@@ -130,10 +135,11 @@ init() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-F)																				;&
+			-F)																				;& # fall-through
 			--follow-git)				FOLLOW_GIT=true				;;
-			-u)																				;&
+			-u)																				;& # fall-through
 			--update-gitignore)	UPDATE_GITIGNORE=true	;;
+			--)																				;; # ignore
 			*)									error "An unexpected argument '%s'." "$1"
 													return 1							;;
 		esac
@@ -182,10 +188,11 @@ list() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-p)																;&
+			-p)																;& # fall-through
 			--porcelain)			PORCELAIN=true	;;
-			-H)																;&
+			-H)																;& # fall-through
 			--human-readable)	PORCELAIN=false	;;
+			--)																;; # ignore
 			*)								error "An unexpected argument '%s'." "$1"
 												return 1				;;
 		esac
@@ -213,7 +220,7 @@ list() {
 	fi
 }
 
-SYNOPSIS[create]='gp {cr | create} [-m | --migrate] [--] REPO...'
+SYNOPSIS[create]='gp {cr | create} [-m | --migrate] REPO...'
 USAGE[create]=\
 'creates new Git-parallel REPOsitories. When the -m / --migrate option is
 specified, the REPOSITORies are initialized with the contents of the currently
@@ -228,17 +235,11 @@ create() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-m)												;&
+			-m)												;& # fall-through
 			--migrate)	MIGRATE=true	;;
-			--)					shift; break  ;;
+			--)												;; # ignore
 			*)					REPOS+=("$1")	;;
 		esac
-		shift
-	done
-	
-	# Collect the repositories.
-	while [[ $# > 0 ]]; do
-		REPOS+=("$1")
 		shift
 	done
 	
@@ -271,7 +272,7 @@ create() {
 	done
 }
 
-SYNOPSIS[remove]='gp {rm | remove} [-f | --force] [--] REPO...'
+SYNOPSIS[remove]='gp {rm | remove} [-f | --force] REPO...'
 USAGE[remove]=\
 'removes the specified Git-parallel REPOsitories. Removing the currently active
 Git repository requires the -f / --force option.'
@@ -285,17 +286,11 @@ remove() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-f)											;&
+			-f)											;& # fall-through
 			--force)	FORCE=true		;;
-			--)				shift; break	;;
+			--)											;; # ignore
 			*)				REPOS+=("$1")	;;
 		esac
-		shift
-	done
-	
-	# Collect the repositories.
-	while [[ $# > 0 ]]; do
-		REPOS+=("$1")
 		shift
 	done
 	
@@ -344,7 +339,7 @@ EOF
 }
 
 SYNOPSIS[checkout]=\
-'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] [--] REPO'
+'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] REPO'
 USAGE[checkout]=\
 "switches to the specified Git-parallel REPOsitory. When the -c / --create option
 is specified, an equivalent of the 'gp init' command is performed beforehand.
@@ -363,13 +358,13 @@ checkout() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-m)												;&
+			-m)												;& # fall-through
 			--migrate)	MIGRATE=true	;;
-			-c)												;&
+			-c)												;& # fall-through
 			--create)		CREATE=true		;;
-			-C)												;&
+			-C)												;& # fall-through
 			--clobber)	CLOBBER=true	;;
-			--)					shift; break  ;;
+			--)												;; # ignore
 			 *)					if [[ -z "$REPO" ]]; then
 										REPO="$1"
 									else
@@ -379,20 +374,6 @@ checkout() {
 		esac
 		shift
 	done
-
-	# Collect the repository.
-	if [[ $# > 1 ]]; then
-		error 'More than one Git-parallel repository was specified.'
-		return 1
-	fi
-	if [[ $# = 1 ]]; then
-		if [[ -z "$REPO" ]]; then
-			REPO="$1"
-		else
-			error 'More than one Git-parallel repository was specified.'
-			return 1
-		fi
-	fi
 
 	# Guard against bad input.
 	jumpToRoot .gitparallel || return 2
@@ -430,7 +411,7 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 	fi
 }
 
-SYNOPSIS[do]='... | gp do [-f | --force] [--] COMMAND'
+SYNOPSIS[do]='... | gp do [-f | --force] COMMAND'
 USAGE[do]=\
 "switches to every Git-parallel repository that is received as a part of a
 newline-separated list on the standard input and executes 'git COMMAND'. When
@@ -451,7 +432,7 @@ do_cmd() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-f)												;&
+			-f)												;& # fall-through
 			--force)	FORCE=true			;;
 			--)				shift; break		;;
 			 *)				COMMAND+=("$1")	;;
@@ -512,21 +493,21 @@ is not the case, then remove the file '.lock' from '$PWD/.gitparallel'.
 # Collect the options.
 SUBCOMMAND=
 case "$1" in
-	ls)															;&
+	ls)															;& # fall-through
 	list)				SUBCOMMAND=list			;;
-	i)															;&
+	i)															;& # fall-through
 	init)				SUBCOMMAND=init			;;
-	cr)															;&
+	cr)															;& # fall-through
 	create)			SUBCOMMAND=create		;;
-	rm)															;&
+	rm)															;& # fall-through
 	remove)			SUBCOMMAND=remove		;;
-	co)															;&
+	co)															;& # fall-through
 	checkout)		SUBCOMMAND=checkout	;;
 	do)					SUBCOMMAND=do_cmd		;;
 	help)				SUBCOMMAND=help			;;
-	-v)															;&
+	-v)															;& # fall-through
 	--version)	version; exit 0			;;
-	-h)															;&
+	-h)															;& # fall-through
 	--help)			usage; exit 0				;;
 	*)					usage; exit 1				;;
 esac

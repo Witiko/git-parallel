@@ -101,7 +101,7 @@ create_noinit() {
 TESTS+=(create_dbldash)
 create_dbldash() {
 	./gp init
-	./gp create a b c -- -m --migrate || return 1
+	./gp create a b c -- d e || return 1
 	[[ "`ls .gitparallel | wc -l`" = 5 ]] || return 2
 	return 0
 }
@@ -188,9 +188,9 @@ remove_noinit() {
 TESTS+=(remove_dbldash)
 remove_dbldash() {
 	./gp init
-	./gp create a b c -- -f --force || return 1
+	./gp create a b c -- d e || return 1
 	[[ "`ls .gitparallel | wc -l`" = 5 ]] || return 2
-	./gp remove a b c -- -f --force || return 3
+	./gp remove a b c -- d e || return 3
 	[[ "`ls .gitparallel | wc -l`" = 0 ]] || return 4
 	return 0
 }
@@ -380,13 +380,9 @@ checkout_extra() {
 TESTS+=(checkout_dbldash)
 checkout_dbldash() {
 	./gp init
-	./gp create a b c -- -c --create -m --migrate -C --clobber || return 1
-	./gp checkout -- -c || return 2
-	./gp checkout -- --create || return 3
-	./gp checkout -- -m || return 4
-	./gp checkout -- --migrate || return 5
-	./gp checkout -- -C || return 6
-	./gp checkout -- --clobber || return 7
+	./gp create a b c -- d e || return 1
+	./gp checkout -- d || return 2
+	./gp checkout -- e || return 3
 	return 0
 }
 
