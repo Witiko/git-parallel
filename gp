@@ -299,7 +299,7 @@ create() {
 	for REPO in "${REPOS[@]}"; do
 		PATHNAME=.gitparallel/"$REPO" 
 		if $MIGRATE; then
-			cp -r "$GIT_ROOT"/.git/ "$PATHNAME" &&
+			cp -a "$GIT_ROOT"/.git/ "$PATHNAME" &&
 			info "Migrated '%s/.git' to '%s/%s'." "$GIT_ROOT" "$PWD" "$PATHNAME"
 		else
 			mkdir "$PATHNAME" &&
