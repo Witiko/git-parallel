@@ -8,15 +8,16 @@ error() { info "${@}" 1>&2; }
 errcat() { cat 1>&2; }
 
 # Print the usage information.
-declare -A USAGE
-declare -A SYNOPSIS
 usage() {
 	cat <<-'EOF'
 Usage:
 
 	EOF
-	for EXAMPLE in "${SYNOPSIS[@]}"; do
-		printf '\t%s\n' "$EXAMPLE"
+	for CMD in "${SYNOPSES[@]}"; do
+		(IFS=' '; for INDEX in $(eval echo '${!'`echo "SYNOPSIS_$CMD"`'[@]}'); do
+			SYNOPSIS=$(eval echo '${'`echo "SYNOPSIS_$CMD"`"[$INDEX]}")
+			printf '\t%s\n' "$SYNOPSIS"
+		done)
 	done | sort | uniq
 	cat <<'EOF'
 
@@ -31,7 +32,7 @@ EOF
 
 # Print the version information.
 version() {
-	echo 'Git-parallel version 1.1.1'
+	echo 'Git-parallel version 1.2.0'
 }
 
 # Print help for a specific subcommand.
@@ -40,13 +41,17 @@ help() {
 	[[ $# = 0 ]] && usage && return 0
 
 	# Guard against bad input.
-	if [[ ! -v USAGE[$1] && ! -v SYNOPSIS[$1] ]]; then
+	if [[ ! "$1" =~ ^[[:alpha:]]*$ || ! " ${SYNOPSES[@]} " =~ " $1 " ]]; then
 		error "There is no command '%s'." "$1"
 		return 1
 	fi
 
 	# Perform the main routine.
-	printf "\n\t%s\n\n%s\n" "${SYNOPSIS[$1]}" "${USAGE[$1]}"
+	(IFS=' '; for INDEX in $(eval echo '${!'`echo "SYNOPSIS_$1"`'[@]}'); do
+		SYNOPSIS=$(eval echo '${'`echo "SYNOPSIS_$1"`"[$INDEX]}")
+		USAGE=$(eval echo '${'`echo "USAGE_$1"`"[$INDEX]}")
+		printf "\n\t%s\n\n%s\n" "$SYNOPSIS" "$USAGE"
+	done)
 }
 
 # Check if the repository names are admissible.
@@ -117,16 +122,17 @@ restore() {
 
 # == Subcommands ==
 
-SYNOPSIS[init]='gp {i | init} [-F | --follow-git] [-u | --update-gitignore]'
-USAGE[init]=\
+SYNOPSES+=(init i)
+SYNOPSIS_init=('gp {i | init} [-F | --follow-git] [-u | --update-gitignore]')
+USAGE_init=(
 "creates a new '.gitparallel' directory that is going to serve as the root
 directory for the remaining 'gp' commands. When the -F / --follow-git option is
 specified, the command will create the '.gitparallel' directory next to the
 current Git repository root rather than inside the current working directory.
 When the -u / --update-gitignore option is specified, an entry for the
-'.gitparallel' will be added to the '.gitignore' file."
-SYNOPSIS[i]="${SYNOPSIS[init]}"
-USAGE[i]="${USAGE[init]}"
+'.gitparallel' will be added to the '.gitignore' file.")
+SYNOPSIS_i=("${SYNOPSIS_init[@]}")
+USAGE_i=("${USAGE_init[@]}")
 
 init() {
 	FOLLOW_GIT=false
@@ -171,15 +177,16 @@ init() {
 	fi
 }
 
-SYNOPSIS[list]='gp {ls | list} [-p | --porcelain] [-H | --human-readable]'
-USAGE[list]=\
+SYNOPSES+=(list ls)
+SYNOPSIS_list=('gp {ls | list} [-p | --porcelain] [-H | --human-readable]')
+USAGE_list=(
 "lists the available Git-parallel repositories. When the -p / --porcelain
 option is specified or when the output of the command gets piped outside the
 terminal, a raw newline-terminated list is produced, ready to be used by the
 'gp do' command.  When the -H / --human-readable option is specified or when
-the output of the command stays in the terminal, a formatted list is produced."
-SYNOPSIS[ls]="${SYNOPSIS[list]}"
-USAGE[ls]="${USAGE[list]}"
+the output of the command stays in the terminal, a formatted list is produced.")
+SYNOPSIS_ls=("${SYNOPSIS_list[@]}")
+USAGE_ls=("${USAGE_list[@]}")
 
 if [[ -t 1 ]]; then PIPED=false; else PIPED=true; fi
 list() {
@@ -220,13 +227,14 @@ list() {
 	fi
 }
 
-SYNOPSIS[create]='gp {cr | create} [-m | --migrate] REPO...'
-USAGE[create]=\
+SYNOPSES+=(create cr)
+SYNOPSIS_create=('gp {cr | create} [-m | --migrate] REPO...')
+USAGE_create=(
 'creates new Git-parallel REPOsitories. When the -m / --migrate option is
 specified, the REPOSITORies are initialized with the contents of the currently
-active Git repository.'
-SYNOPSIS[cr]="${SYNOPSIS[create]}"
-USAGE[cr]="${USAGE[create]}"
+active Git repository.')
+SYNOPSIS_cr=("${SYNOPSIS_create[@]}")
+USAGE_cr=("${USAGE_create[@]}")
 
 create() {
 	REPOS=()
@@ -272,12 +280,13 @@ create() {
 	done
 }
 
-SYNOPSIS[remove]='gp {rm | remove} [-f | --force] REPO...'
-USAGE[remove]=\
+SYNOPSES+=(remove rm)
+SYNOPSIS_remove=('gp {rm | remove} [-f | --force] REPO...')
+USAGE_remove=(
 'removes the specified Git-parallel REPOsitories. Removing the currently active
-Git repository requires the -f / --force option.'
-SYNOPSIS[rm]="${SYNOPSIS[remove]}"
-USAGE[rm]="${USAGE[remove]}"
+Git repository requires the -f / --force option.')
+SYNOPSIS_rm=("${SYNOPSIS_remove[@]}")
+USAGE_rm=("${USAGE_remove[@]}")
 
 remove() {
 	REPOS=()
@@ -338,16 +347,17 @@ EOF
 	done
 }
 
-SYNOPSIS[checkout]=\
-'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] REPO'
-USAGE[checkout]=\
+SYNOPSES+=(checkout co)
+SYNOPSIS_checkout=(
+'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] REPO')
+USAGE_checkout=(
 "switches to the specified Git-parallel REPOsitory. When the -c / --create option
 is specified, an equivalent of the 'gp init' command is performed beforehand.
 If there exists a '.git' directory that is not a Git-parallel symlink to and
 that would therefore be overriden by the switch, the -C / --clobber or the -m /
-migrate option is required."
-SYNOPSIS[co]="${SYNOPSIS[checkout]}"
-USAGE[co]="${USAGE[checkout]}"
+migrate option is required.")
+SYNOPSIS_co=("${SYNOPSIS_checkout[@]}")
+USAGE_co=("${USAGE_checkout[@]}")
 
 checkout() {
 	REPO=
@@ -411,40 +421,57 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 	fi
 }
 
-SYNOPSIS[do]='... | gp do [-f | --force] COMMAND'
-USAGE[do]=\
+SYNOPSES+=(do)
+SYNOPSIS_do=(
+'gp do [-f | --force] REPO... -- COMMAND'
+'... | gp do [-f | --force] COMMAND')
+USAGE_do=(
+"switches to every specified Git-parallel REPOsitory and executes 'git
+COMMAND'. When 'git COMMAND' exits with a non-zero exit code, the command is
+interrupted prematurely, unless the -f / --force option is specified. After the
+command has ended, the original Git repository is restored."
 "switches to every Git-parallel repository that is received as a part of a
 newline-separated list on the standard input and executes 'git COMMAND'. When
-'git COMMAND' returns with a non-zero exit code, the loop is interrupted
-prematurely, unless the -f / --force option is specified. After the loop has
-ended, the original Git repository is restored."
+'git COMMAND' exits with a non-zero exit code, the command is interrupted
+prematurely, unless the -f / --force option is specified. After the command has
+ended, the original Git repository is restored.")
 
 do_cmd() {
 	REPOS=()
 	COMMAND=()
 	FORCE=false
 
-	# Collect the repositories.
-	while read REPO; do
-		REPOS+=("$REPO")
-	done
-
 	# Collect the options.
+	ACCUMULATOR=()
+	STDIN_INPUT=true
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-f)												;& # fall-through
-			--force)	FORCE=true			;;
-			--)				shift; break		;;
-			 *)				COMMAND+=("$1")	;;
+			-f)														;& # fall-through
+			--force)	FORCE=true					;;
+			--)				STDIN_INPUT=false
+								shift; break				;;
+			 *)				ACCUMULATOR+=("$1")	;;
 		esac
 		shift
 	done
 
-	# Collect the command.
-	while [[ $# > 0 ]]; do
-		COMMAND+=("$1")
-		shift
-	done
+	# Handle the overloading.
+	if $STDIN_INPUT; then
+		COMMAND=("${ACCUMULATOR[@]}")
+
+		# Collect the repositories.
+		while read REPO; do
+			REPOS+=("$REPO")
+		done
+	else
+		REPOS=("${ACCUMULATOR[@]}")
+
+		# Collect the command.
+		while [[ $# > 0 ]]; do
+			COMMAND+=("$1")
+			shift
+		done
+	fi
 
 	# Guard against bad input.
 	jumpToRoot .gitparallel || return 1

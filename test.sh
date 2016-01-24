@@ -151,6 +151,7 @@ create_checkNames() {
 	./gp create a b c '' && return 1
 	./gp create a b/c d && return 2
 	./gp create . b c d && return 3
+	./gp create a b --bogus d && return 4
 	return 0
 }
 
@@ -427,18 +428,30 @@ checkout_checkNames() {
 	./gp checkout --create '' && return 1
 	./gp checkout --create a/b && return 2
 	./gp checkout --create . && return 3
+	./gp checkout --create --bogus && return 4
 	return 0
 }
 
 ## == Tests for the `do` subcommand ==
-### Test the basic functionality of the command.
-TESTS+=(do_cmd)
-do_cmd() {
+### Test the correct functionality of the stdin repo input overload.
+TESTS+=(do_cmd_stdin)
+do_cmd_stdin() {
 	./gp init
 	./gp create a b c || return 1
 	./gp list | ./gp do status --porcelain && return 2
 	./gp list | ./gp do init || return 3
 	./gp list | ./gp do status --porcelain || return 4
+	return 0
+}
+
+### Test the correct functionality of the args repo input overload.
+TESTS+=(do_cmd_args)
+do_cmd_args() {
+	./gp init
+	./gp create a b c || return 1
+	./gp do a b c -- status --porcelain && return 2
+	./gp do a b c -- init || return 3
+	./gp do a b c -- status --porcelain || return 4
 	return 0
 }
 
