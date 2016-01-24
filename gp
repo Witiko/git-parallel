@@ -131,12 +131,12 @@ init() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-F)											;&
-			--follow-git)		FOLLOW_GIT=true			;;
-			-u)											;&
+			-F)																				;&
+			--follow-git)				FOLLOW_GIT=true				;;
+			-u)																				;&
 			--update-gitignore)	UPDATE_GITIGNORE=true	;;
-			*)					error "An unexpected argument '%s'." "$1"
-								return 1				;;
+			*)									error "An unexpected argument '%s'." "$1"
+													return 1							;;
 		esac
 		shift
 	done
@@ -183,12 +183,12 @@ list() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-p)									;&
-			--porcelain)		PORCELAIN=true	;;
-			-H)									;&
+			-p)																;&
+			--porcelain)			PORCELAIN=true	;;
+			-H)																;&
 			--human-readable)	PORCELAIN=false	;;
-			*)					error "An unexpected argument '%s'." "$1"
-								return 1			;;
+			*)								error "An unexpected argument '%s'." "$1"
+												return 1				;;
 		esac
 		shift
 	done
@@ -229,10 +229,10 @@ create() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-m)							;&
+			-m)												;&
 			--migrate)	MIGRATE=true	;;
-			--)			shift; break    ;;
-			*)			REPOS+=("$1")	;;
+			--)					shift; break  ;;
+			*)					REPOS+=("$1")	;;
 		esac
 		shift
 	done
@@ -286,10 +286,10 @@ remove() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-f)								;&
-			--force)	FORCE=true			;;
-			--)			shift; break	    ;;
-			*)			REPOS+=("$1")	;;
+			-f)											;&
+			--force)	FORCE=true		;;
+			--)				shift; break	;;
+			*)				REPOS+=("$1")	;;
 		esac
 		shift
 	done
@@ -339,8 +339,7 @@ EOF
 			info "Removed the active Git-parallel repository '%s' from '%s'." \
 				"$REPO" "$PWD"
 		else
-			info "Removed the Git-parallel repository '%s' from '%s'." \
-				"$REPO" "$PWD"
+			info "Removed the Git-parallel repository '%s' from '%s'." "$REPO" "$PWD"
 		fi
 	done
 }
@@ -365,19 +364,19 @@ checkout() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-m)								;&
-			--migrate)	MIGRATE=true		;;
-			-c)								;&
-			--create)	CREATE=true			;;
-			-C)								;&
-			--clobber)	CLOBBER=true		;;
-			--)			shift; break	    ;;
-			 *)	if [[ -z "$REPO" ]]; then
-					REPO="$1"
-				else
-					error 'More than one Git-parallel repository was specified.'
-					return 1
-				fi							;;
+			-m)												;&
+			--migrate)	MIGRATE=true	;;
+			-c)												;&
+			--create)		CREATE=true		;;
+			-C)												;&
+			--clobber)	CLOBBER=true	;;
+			--)					shift; break  ;;
+			 *)					if [[ -z "$REPO" ]]; then
+										REPO="$1"
+									else
+										error 'More than one Git-parallel repository was specified.'
+										return 1
+									fi						;;
 		esac
 		shift
 	done
@@ -453,10 +452,10 @@ do_cmd() {
 	# Collect the options.
 	while [[ $# > 0 ]]; do
 		case "$1" in
-			-f)							;&
-			--force)	FORCE=true		;;
-			--)			shift; break	;;
-			 *)			COMMAND+=("$1")	;;
+			-f)												;&
+			--force)	FORCE=true			;;
+			--)				shift; break		;;
+			 *)				COMMAND+=("$1")	;;
 		esac
 		shift
 	done
@@ -500,23 +499,23 @@ do_cmd() {
 # Collect the options.
 SUBCOMMAND=
 case "$1" in
-	ls)								;&
-	list)		SUBCOMMAND=list		;;
-	i)								;&
-	init)		SUBCOMMAND=init		;;
-	cr)								;&
-	create)		SUBCOMMAND=create	;;
-	rm)								;&
-	remove)		SUBCOMMAND=remove	;;
-	co)								;&
-	checkout)	SUBCOMMAND=checkout	;;
-	do)			SUBCOMMAND=do_cmd	;;
-	help)		SUBCOMMAND=help		;;
-	-v)								;&
-	--version)	version; exit 0		;;
-	-h)								;&
-	--help)		usage; exit 0		;;
-	*)			usage; exit 1		;;
+	ls)															;&
+	list)				SUBCOMMAND=list			;;
+	i)															;&
+	init)				SUBCOMMAND=init			;;
+	cr)															;&
+	create)			SUBCOMMAND=create		;;
+	rm)															;&
+	remove)			SUBCOMMAND=remove		;;
+	co)															;&
+	checkout)		SUBCOMMAND=checkout	;;
+	do)					SUBCOMMAND=do_cmd		;;
+	help)				SUBCOMMAND=help			;;
+	-v)															;&
+	--version)	version; exit 0			;;
+	-h)															;&
+	--help)			usage; exit 0				;;
+	*)					usage; exit 1				;;
 esac
 
 # Execute the subcommand.
