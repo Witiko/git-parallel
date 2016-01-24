@@ -56,7 +56,7 @@ checkNames() {
 			error 'The Git-parallel repository names must be non-empty.'
 			return 1
 		fi
-		if grep -q '[./]' <<<"$NAME"; then
+		if [[ "$NAME" =~ [./] ]]; then
 			error "The name '%s' contains illegal characters (., /)." "$NAME"
 			return 2
 		fi
@@ -83,8 +83,7 @@ jumpToRoot() {
 # Retrieve the currently active repository.
 activeRepository() {
 	LINK="`readlink .git`" &&
-	grep -q '^\.gitparallel/'	<<<"$LINK" &&
-    sed   's#^\.gitparallel/##'	<<<"$LINK"
+	[[ "$LINK" =~ ^\.gitparallel/ ]] && printf '%s\n' "${LINK#.gitparallel/}"
 }
 
 # Remembering the current repository consists of pushing the contents of the
