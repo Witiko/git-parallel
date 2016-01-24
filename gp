@@ -51,7 +51,7 @@ EOF
 
 # Print the version information.
 version() {
-	info 'Git-parallel version 1.2.1'
+	info 'Git-parallel version 1.2.2'
 	info 'Copyright © 2016 Vít Novotný'
 	infocat <<-'EOF'
 		License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
