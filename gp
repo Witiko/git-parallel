@@ -52,7 +52,7 @@ EOF
 
 # Print the version information.
 version() {
-	info 'Git-parallel version 1.2.3'
+	info 'Git-parallel version 1.2.4'
 	info 'Copyright © 2016 Vít Novotný'
 	infocat <<-'EOF'
 		License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
@@ -164,7 +164,7 @@ directory for the remaining 'gp' commands. When the -F / --follow-git option is
 specified, the command will create the '.gitparallel' directory next to the
 current Git repository root rather than inside the current working directory.
 When the -u / --update-gitignore option is specified, an entry for the
-'.gitparallel' will be added to the '.gitignore' file.")
+'.gitparallel' directory will be added to the '.gitignore' file.")
 SYNOPSIS_i=("${SYNOPSIS_init[@]}")
 USAGE_i=("${USAGE_init[@]}")
 
@@ -268,7 +268,7 @@ SUBCOMMANDS+=(create cr)
 SYNOPSIS_create=('gp {cr | create} [-m | --migrate] REPO...')
 USAGE_create=(
 'creates new Git-parallel REPOsitories. When the -m / --migrate option is
-specified, the REPOSITORies are initialized with the contents of the currently
+specified, the REPOsitories are initialized with the contents of the currently
 active Git repository.')
 SYNOPSIS_cr=("${SYNOPSIS_create[@]}")
 USAGE_cr=("${USAGE_create[@]}")
@@ -386,8 +386,8 @@ SYNOPSIS_checkout=(
 'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] REPO')
 USAGE_checkout=(
 "switches to the specified Git-parallel REPOsitory. When the -c / --create option
-is specified, an equivalent of the 'gp init' command is performed beforehand.
-If there exists a '.git' directory that is not a Git-parallel symlink to and
+is specified, an equivalent of the 'gp create' command is performed beforehand.
+If there exists a '.git' directory that is not a symlink to '.gitparallel' and
 that would therefore be overriden by the switch, the -C / --clobber or the -m /
 migrate option is required.")
 SYNOPSIS_co=("${SYNOPSIS_checkout[@]}")
@@ -460,15 +460,16 @@ SYNOPSIS_do=(
 'gp do [-f | --force] REPO... -- COMMAND'
 '... | gp do [-f | --force] COMMAND')
 USAGE_do=(
-"switches to every Git-parallel REPOsitory and executes 'git COMMAND'. When
-'git COMMAND' exits with a non-zero exit code, the 'gp do' command is
-interrupted prematurely, unless the -f / --force option is specified. After the
-command has ended, the original Git repository is restored."
+"switches to every specified Git-parallel REPOsitory and executes 'git
+COMMAND'. Should 'git COMMAND' exit with a non-zero exit code, the 'gp do'
+command will be interrupted prematurely, unless the -f / --force option is
+specified. After the command has ended, the original Git repository will be
+restored."
 "switches to every Git-parallel repository that is received as a part of a
-newline-separated list on the standard input and executes 'git COMMAND'. When
-'git COMMAND' exits with a non-zero exit code, the 'gp do' command is
+newline-separated list on the standard input and executes 'git COMMAND'. Should
+'git COMMAND' exit with a non-zero exit code, the 'gp do' command will be
 interrupted prematurely, unless the -f / --force option is specified. After the
-command has ended, the original Git repository is restored.")
+command has ended, the original Git repository will be restored.")
 
 do_cmd() {
 	REPOS=()
