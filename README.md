@@ -2,119 +2,91 @@
 
 [![Circle CI](https://img.shields.io/circleci/project/Witiko/git-parallel/master.svg)](https://circleci.com/gh/Witiko/git-parallel)
 
-Have several Git repositories live inside a single directory.
+Git-parallel, also known as `gp`, is a shell script that makes it possible to
+create and switch between several Git repositories inside a single directory.
+The Git repositories are stored inside a `.gitparallel` directory with `.git`
+being a symbolic link pointing to `.gitparallel/active-repo`.
 
 ## Requirements
 
  * [Bash 4+](https://www.gnu.org/software/bash/)
 
-## Examples
-### Creating two empty `gp` repositories
+## How does `gp` relate to Git submodules?
 
-	$ gp init --update-gitignore
-	Created a '.gitparallel' directory in '/tmp/foobar'.
-	Created a '.gitignore' file.
+They are unrelated:
 
-	$ gp create repoA repoB
-	Created an empty Git-parallel repository 'repoA' in '/tmp/foobar'.
-	Created an empty Git-parallel repository 'repoB' in '/tmp/foobar'.
+* Git submodules are Git repositories inside a Git superrepository. Their
+	origin is known to the superrepository, although their content is not stored
+	in it. They enable easy sharing of composite repositories. Git submodules
+	each have their designated directory; they can not be mixed.
+* `gp` creates collections of Git repositories inside a single directory. These
+	repositories are not in a superrepository-subrepository relationship; in
+	fact, they are completely unaware of one another. Git-parallel collections
+	exist only on your local machine; Git does not see them, so you can not push
+	them to a remote, only the individual repos they contain.
 
-	$ tree -a
-	.
-	├── .gitignore
-	└── .gitparallel
-		├── repoA
-		└── repoB
+## How does `gp` relate to Git branches?
 
-	3 directories, 1 file
+With regards to what you can do with them, the two are very similar, although
+not completely equivalent (branches cannot have separate hooks, config, etc.
+whereas repositories can). The main difference is in the semantics. Suppose you
+have several files from different projects inside a single directory.  To track
+these files, you _could_ create one Git repository with separate branches, but
+in fact, these files are unrelated and belong to separate repositories.
 
-	$ gp ls | gp do init
-	Switched to the Git-parallel repository 'repoA'.
-	Initialized empty Git repository in /tmp/foobar/.gitparallel/repoA/
-	Switched to the Git-parallel repository 'repoB'.
-	Initialized empty Git repository in /tmp/foobar/.gitparallel/repoB/
-	Removed the '.git' symlink from '/tmp/foobar'.
+Using branches instead of repositories also makes it unpractical to work on
+several of these projects at once. That is because unlike repositories,
+branches do not have separate index files, so you need to stash your staged
+changes when switching and restore them afterwards:
 
-	$ gp ls | gp do add .gitignore
-	Switched to the Git-parallel repository 'repoA'.
-	Switched to the Git-parallel repository 'repoB'.
-	Removed the '.git' symlink from '/tmp/foobar'.
+	git stash
+	git checkout other-branch
+	git commit -am 'updated several files.'
+	git checkout previous-branch
+	git stash pop
 
-	$ gp ls | gp do commit -m 'initial commit.'
-	Switched to the Git-parallel repository 'repoA'.
-	[master (root-commit) b55b9c6] initial commit.
-	 1 file changed, 1 insertion(+)
-	 create mode 100644 .gitignore
-	Switched to the Git-parallel repository 'repoB'.
-	[master (root-commit) b55b9c6] initial commit.
-	 1 file changed, 1 insertion(+)
-	 create mode 100644 .gitignore
-	Removed the '.git' symlink from '/tmp/foobar'.
+Suppose you would now like to share some of the files between the projects.
+This adds more complexity to the workflow:
 
-	$ gp checkout repoA
-	Switched to the Git-parallel repository 'repoA'.
+	# This works only when you've commited the shared files in previous-branch,
+	# otherwise they will be stashed.
+	git stash
+	git checkout other-branch
+	git checkout previous-branch shared-file1 shared-file2 ... shared-fileN
+	git commit -am 'updated several files.'
+	git checkout previous-branch
+	git stash pop
 
-	$ ls -al
-	total 52
-	drwxr-xr-x   3 witiko witiko  4096 led 23 19:18 .
-	drwxrwxrwt 181 root   root   36864 led 23 19:18 ..
-	lrwxrwxrwx   1 witiko witiko    18 led 23 19:18 .git -> .gitparallel/repoA
-	-rw-r--r--   1 witiko witiko    13 led 23 19:17 .gitignore
-	drwxr-xr-x   4 witiko witiko  4096 led 23 19:17 .gitparallel
+	# This always works, but you lose your staged changes in previous-branch.
+	git symbolic-ref HEAD refs/heads/other-branch
+	git reset --mixed other-branch
+	git commit -am 'updated several files.'
+	git symbolic-ref HEAD refs/heads/previous-branch
+	git reset --mixed previous-branch
 
-	$ git log
-	commit b55b9c69dce35cc0897cbf51d262fbf21417675a
-	Author: witiko <witiko@mail.muni.cz>
-	Date:   Sat Jan 23 19:34:08 2016 +0100
+I do not believe this is sane. Compare this to commiting changes to a `gp`
+repository:
 
-	    initial commit.
+	gp do other-repo -- commit -am 'updated several files.'
 
-### Migrating a Git repository to `gp`
+## How do I use `gp`?
+The `gp help` command should have you covered. Here are some examples of the
+basic usage of `gp`:
 
-	$ gp init --follow-git --update-gitignore
-	Created a '.gitparallel' directory in '/tmp/foobar'.
-	Updated the '.gitignore' file.
+	# Creates two empty gp repositories.
+	gp init
+	gp create repoA repoB
+	gp ls | gp do init
+	gp ls | gp do commit -m 'initial commit.'
 
-	$ gp checkout --create --migrate repoA
-	Migrated '/tmp/foobar/.git' to '/tmp/foobar/.gitparallel/repoA'.
-	Switched to a new Git-parallel repository 'repoA'.
+	# Migrates an existing Git repository to gp.
+	gp create --migrate repoC
 
-	$ ls -al
-	total 52
-	drwxr-xr-x   3 witiko witiko  4096 led 23 19:22 .
-	drwxrwxrwt 181 root   root   36864 led 23 19:22 ..
-	lrwxrwxrwx   1 witiko witiko    18 led 23 19:22 .git -> .gitparallel/repoA
-	-rw-r--r--   1 witiko witiko    13 led 23 19:22 .gitignore
-	drwxr-xr-x   3 witiko witiko  4096 led 23 19:22 .gitparallel
+	# Switches between the gp repositories.
+	gp checkout --clobber repoA
+	gp checkout repoB
+	gp checkout repoC
 
-### Removing a `gp` repository
-
-	$ gp ls
-	  repoA
-	* repoB
-
-	$ gp rm repoA
-	Removed the Git-parallel repository 'repoA' from '/tmp/foobar'.
-
-	$ ls
-	total 52
-	drwxr-xr-x   3 witiko witiko  4096 Jan 23 19:26 .
-	drwxrwxrwt 181 root   root   36864 Jan 23 19:26 ..
-	lrwxrwxrwx   1 witiko witiko    18 Jan 23 19:26 .git -> .gitparallel/repoB
-	-rw-r--r--   1 witiko witiko    13 Jan 23 19:22 .gitignore
-	drwxr-xr-x   3 witiko witiko  4096 Jan 23 19:26 .gitparallel
-
-	$ gp rm repoB
-	The Git-parallel repository 'repoB' is active. By removing it, the contents
-	of your active Git repository WILL BE LOST! To approve the removal, specify
-	the -f / --force option.
-
-	$ gp rm --force repoB
-	Removed the active Git-parallel repository 'repoB' from '/tmp/foobar'.
-
-	$ ls
-	total 52
-	drwxr-xr-x   3 witiko witiko  4096 Jan 23 19:27 .
-	drwxrwxrwt 181 root   root   36864 Jan 23 19:27 ..
-	-rw-r--r--   1 witiko witiko    13 Jan 23 19:22 .gitignore
-	drwxr-xr-x   2 witiko witiko  4096 Jan 23 19:27 .gitparallel
+	# Removes the gp repositories.
+	gp rm repoA repoB
+	gp rm --force repoC
