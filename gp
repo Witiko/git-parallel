@@ -24,12 +24,13 @@ error() { info "${@}" 1>&2; }
 errcat() { infocat 1>&2; }
 
 # Print the usage information.
+SUBCOMMANDS=()
 usage() {
 	cat <<-'EOF'
 Usage:
 
 	EOF
-	for CMD in "${SYNOPSES[@]}"; do
+	for CMD in "${SUBCOMMANDS[@]}"; do
 		(IFS=' '; for INDEX in $(eval echo '${!'`echo "SYNOPSIS_$CMD"`'[@]}'); do
 			SYNOPSIS=$(eval echo '${'`echo "SYNOPSIS_$CMD"`"[$INDEX]}")
 			printf '  %s\n' "$SYNOPSIS"
@@ -66,7 +67,7 @@ help() {
 	[[ $# = 0 ]] && usage && return 0
 
 	# Guard against bad input.
-	if [[ ! "$1" =~ ^[[:alpha:]]*$ || ! " ${SYNOPSES[@]} " =~ " $1 " ]]; then
+	if [[ ! "$1" =~ ^[[:alpha:]]*$ || ! " ${SUBCOMMANDS[@]} " =~ " $1 " ]]; then
 		error "There is no command '%s'." "$1"
 		return 1
 	fi
@@ -148,7 +149,7 @@ restore() {
 
 # == Subcommands ==
 
-SYNOPSES+=(init i)
+SUBCOMMANDS+=(init i)
 SYNOPSIS_init=('gp {i | init} [-F | --follow-git] [-u | --update-gitignore]')
 USAGE_init=(
 "creates a new '.gitparallel' directory that is going to serve as the root
@@ -203,7 +204,7 @@ init() {
 	fi
 }
 
-SYNOPSES+=(list ls)
+SUBCOMMANDS+=(list ls)
 SYNOPSIS_list=('gp {ls | list} [-p | --porcelain] [-H | --human-readable]')
 USAGE_list=(
 "lists the available Git-parallel repositories. When the -p / --porcelain
@@ -256,7 +257,7 @@ list() {
 	fi
 }
 
-SYNOPSES+=(create cr)
+SUBCOMMANDS+=(create cr)
 SYNOPSIS_create=('gp {cr | create} [-m | --migrate] REPO...')
 USAGE_create=(
 'creates new Git-parallel REPOsitories. When the -m / --migrate option is
@@ -309,7 +310,7 @@ create() {
 	done
 }
 
-SYNOPSES+=(remove rm)
+SUBCOMMANDS+=(remove rm)
 SYNOPSIS_remove=('gp {rm | remove} [-f | --force] REPO...')
 USAGE_remove=(
 'removes the specified Git-parallel REPOsitories. Removing the currently active
@@ -373,7 +374,7 @@ EOF
 	done
 }
 
-SYNOPSES+=(checkout co)
+SUBCOMMANDS+=(checkout co)
 SYNOPSIS_checkout=(
 'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] REPO')
 USAGE_checkout=(
@@ -447,7 +448,7 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 	fi
 }
 
-SYNOPSES+=(do)
+SUBCOMMANDS+=(do)
 SYNOPSIS_do=(
 'gp do [-f | --force] REPO... -- COMMAND'
 '... | gp do [-f | --force] COMMAND')
