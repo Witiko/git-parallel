@@ -149,9 +149,14 @@ TESTS+=(create_checkNames)
 create_checkNames() {
 	./gp init
 	./gp create a b c '' && return 1
-	./gp create a b/c d && return 2
-	./gp create . b c d && return 3
-	./gp create a b --bogus d && return 4
+	./gp create a b/c && return 2
+	./gp create 'a
+	             b' c d && return 4
+	./gp create . b c d && return 5
+	./gp create a. b c || return 6
+	{ rm -rf .gitparallel && ./gp init; } || return 7
+	./gp create a b --bogus d && return 8
+	./gp create a b bo-gus d || return 9
 	return 0
 }
 
@@ -427,8 +432,12 @@ checkout_checkNames() {
 	./gp init
 	./gp checkout --create '' && return 1
 	./gp checkout --create a/b && return 2
-	./gp checkout --create . && return 3
-	./gp checkout --create --bogus && return 4
+	./gp checkout --create 'a
+	                        b' && return 3
+	./gp checkout --create . && return 4
+	./gp checkout --create a. || return 5
+	./gp checkout --create --bogus && return 6
+	./gp checkout --create bo-gus || return 7
 	return 0
 }
 

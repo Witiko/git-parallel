@@ -52,7 +52,7 @@ EOF
 
 # Print the version information.
 version() {
-	info 'Git-parallel version 1.2.2'
+	info 'Git-parallel version 1.2.3'
 	info 'Copyright © 2016 Vít Novotný'
 	infocat <<-'EOF'
 		License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
@@ -88,14 +88,21 @@ checkNames() {
 			error 'Git-parallel repository names must be non-empty.'
 			return 1
 		fi
-		if [[ "$NAME" =~ [./] ]]; then
-			error "The repository name '%s' contains illegal characters (., /)." \
-				"$NAME"
+		if [[ "$NAME" =~ ^\. ]]; then
+			error "Git-parallel repository names may not start with a dot."
 			return 2
 		fi
 		if [[ "$NAME" =~ ^- ]]; then
-			error "Git-parallel repository names may not start with a hyphen (-)."
+			error "Git-parallel repository names may not start with a hyphen."
 			return 3
+		fi
+		if [[ "$(printf '%s' "$NAME" | wc -l)" -gt 0 ]]; then
+			error "Git-parallel repository names may not contain a newline."
+			return 4
+		fi
+		if [[ "$NAME" =~ / ]]; then
+			error "Git-parallel repository names may not contain a slash."
+			return 5
 		fi
 	done
 }
