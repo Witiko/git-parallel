@@ -193,7 +193,7 @@ init() {
 	UPDATE_GITIGNORE=false
 
 	# Collect the options.
-	while [[ $# > 0 ]]; do
+	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			-F)																				;& # fall-through
 			--follow-git)				FOLLOW_GIT=true				;;
@@ -250,7 +250,7 @@ list() {
 	fi
 
 	# Collect the options.
-	while [[ $# > 0 ]]; do
+	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			-p)																;& # fall-through
 			--porcelain)			PORCELAIN=true	;;
@@ -298,7 +298,7 @@ create() {
 	MIGRATE=false
 
 	# Collect the options.
-	while [[ $# > 0 ]]; do
+	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			-m)												;& # fall-through
 			--migrate)	MIGRATE=true	;;
@@ -350,7 +350,7 @@ remove() {
 	FORCE=false
 
 	# Collect the options.
-	while [[ $# > 0 ]]; do
+	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			-f)											;& # fall-through
 			--force)	FORCE=true		;;
@@ -420,7 +420,7 @@ checkout() {
 	CLOBBER=false
 
 	# Collect the options.
-	while [[ $# > 0 ]]; do
+	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			-m)												;& # fall-through
 			--migrate)	MIGRATE=true	;;
@@ -499,7 +499,7 @@ do_cmd() {
 	# Collect the options.
 	ACCUMULATOR=()
 	STDIN_INPUT=true
-	while [[ $# > 0 ]]; do
+	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			-f)														;& # fall-through
 			--force)	FORCE=true					;;
@@ -522,7 +522,7 @@ do_cmd() {
 		REPOS=("${ACCUMULATOR[@]}")
 
 		# Collect the command.
-		while [[ $# > 0 ]]; do
+		while [[ $# -gt 0 ]]; do
 			COMMAND+=("$1")
 			shift
 		done
