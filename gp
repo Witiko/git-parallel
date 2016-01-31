@@ -101,30 +101,28 @@ help() {
 	done; echo)
 }
 
-# Check if the repository names are admissible.
-checkNames() {
-	for NAME; do
-		if [[ -z "$NAME" ]]; then
-			error 'Git-parallel repository names must be non-empty.'
-			return 1
-		fi
-		if [[ "$NAME" =~ ^\. ]]; then
-			error "Git-parallel repository names may not start with a dot."
-			return 2
-		fi
-		if [[ "$NAME" =~ ^- ]]; then
-			error "Git-parallel repository names may not start with a hyphen."
-			return 3
-		fi
-		if [[ "$(printf '%s' "$NAME" | wc -l)" -gt 0 ]]; then
-			error "Git-parallel repository names may not contain a newline."
-			return 4
-		fi
-		if [[ "$NAME" =~ / ]]; then
-			error "Git-parallel repository names may not contain a slash."
-			return 5
-		fi
-	done
+# Check if the repository name is admissible.
+checkName() {
+	if [[ -z "$1" ]]; then
+		error 'Git-parallel repository names must be non-empty.'
+		return 1
+	fi
+	if [[ "$1" =~ ^\. ]]; then
+		error "Git-parallel repository names may not start with a dot."
+		return 2
+	fi
+	if [[ "$1" =~ ^- ]]; then
+		error "Git-parallel repository names may not start with a hyphen."
+		return 3
+	fi
+	if [[ "$(printf '%s' "$1" | wc -l)" -gt 0 ]]; then
+		error "Git-parallel repository names may not contain a newline."
+		return 4
+	fi
+	if [[ "$1" =~ / ]]; then
+		error "Git-parallel repository names may not contain a slash."
+		return 5
+	fi
 }
 
 # Retrieve the nearest directory containing the directory $1 and change the
@@ -303,19 +301,19 @@ create() {
 			-m)												;& # fall-through
 			--migrate)	MIGRATE=true	;;
 			--)												;; # ignore
-			*)					REPOS+=("$1")	;;
+			*)					checkName "$1" || return 1
+									REPOS+=("$1")	;;
 		esac
 		shift
 	done
 	
 	# Guard against bad input.
-	$MIGRATE && ! GIT_ROOT="`jumpToRoot .git && printf '%s\n' "$PWD"`" && exit 1
-	jumpToRoot .gitparallel || return 2
+	$MIGRATE && ! GIT_ROOT="`jumpToRoot .git && printf '%s\n' "$PWD"`" && return 2
+	jumpToRoot .gitparallel || return 3
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
-		return 3
+		return 4
 	fi
-	! checkNames "${REPOS[@]}" && return 4
 	for REPO in "${REPOS[@]}"; do
 		if [[ -d .gitparallel/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' already exists." "$REPO"
@@ -355,18 +353,18 @@ remove() {
 			-f)											;& # fall-through
 			--force)	FORCE=true		;;
 			--)											;; # ignore
-			*)				REPOS+=("$1")	;;
+			*)				checkName "$1" || return 1
+								REPOS+=("$1")	;;
 		esac
 		shift
 	done
 	
 	# Guard against bad input.
-	jumpToRoot .gitparallel || return 1
+	jumpToRoot .gitparallel || return 2
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
-		return 2
+		return 3
 	fi
-	! checkNames "${REPOS[@]}" && return 3
 	for REPO in "${REPOS[@]}"; do
 		if [[ ! -d .gitparallel/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' does not exist in '%s'." \
@@ -429,20 +427,20 @@ checkout() {
 			-C)												;& # fall-through
 			--clobber)	CLOBBER=true	;;
 			--)												;; # ignore
-			 *)					if [[ -z "$REPO" ]]; then
+			 *)					checkName "$1" || return 1
+				 					if [[ -z "$REPO" ]]; then
 										REPO="$1"
 									else
 										error 'More than one Git-parallel repository was specified.'
-										return 1
+										return 2
 									fi						;;
 		esac
 		shift
 	done
 
 	# Guard against bad input.
-	jumpToRoot .gitparallel || return 2
-	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && return 3
-	! checkNames "$REPO" && return 4
+	jumpToRoot .gitparallel || return 3
+	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && return 4
 	if [[ ! -d .gitparallel/"$REPO" ]] && ! $CREATE; then
 		error "The Git-parallel repository '%s' does not exist in '%s'." \
 			"$REPO" "$PWD"
@@ -516,10 +514,15 @@ do_cmd() {
 
 		# Collect the repositories.
 		while read REPO; do
+		  checkName "$REPO" || return 1
 			REPOS+=("$REPO")
 		done
 	else
+		# Verify the repository names.
 		REPOS=("${ACCUMULATOR[@]}")
+		for REPO in "${REPOS[@]}"; do
+		  checkName "$REPO" || return 2
+		done
 
 		# Collect the command.
 		while [[ $# -gt 0 ]]; do
@@ -529,17 +532,16 @@ do_cmd() {
 	fi
 
 	# Guard against bad input.
-	jumpToRoot .gitparallel || return 1
+	jumpToRoot .gitparallel || return 3
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
-		return 2
+		return 4
 	fi
-	! checkNames "${REPOS[@]}" && return 3
 	for REPO in "${REPOS[@]}"; do
 		if [[ ! -d .gitparallel/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' does not exist in '%s'." \
 				"$REPO" "$PWD"
-			return 4
+			return 5
 		fi
 	done
 
@@ -551,7 +553,7 @@ There appears to be another 'gp do' command underway ran by a process with the
 PID `cat "$LOCK"`. If you are certain this is not the case, then remove the
 file '$LOCK' from '$PWD' and rerun the command.
 		EOF
-		return 5
+		return 6
 	fi
 
   # Schedule the release of the lock.
@@ -571,7 +573,7 @@ file '$LOCK' from '$PWD' and rerun the command.
 		fi
 	done
 	restore 1>&2; }
-	! $LOOP_BROKEN || return 6
+	! $LOOP_BROKEN || return 7
 }
 
 # == The main routine ==
