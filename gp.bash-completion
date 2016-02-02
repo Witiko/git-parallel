@@ -32,37 +32,44 @@
 ################################################################################
 
 _gp() {
-	local cur prev opts
+	local cur prev opts IFS
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts=
+	opts=()
+	IFS=$' \t\n'
 
 	case "$prev" in
 		gp)
-			[[ $COMP_CWORD = 1 ]] &&
-			opts="co checkout cr create do i init ls list help --version -v --help -h"
+			if [[ $COMP_CWORD = 1 ]]; then
+				opts=(help --version -v --help -h)
+				if [[ -d .gitparallel ]]; then
+					opts+=(co checkout cr create do ls list)
+				else
+					opts+=(i init)
+				fi
+			fi
 			;;
 		co) ;& checkout)
-			opts="-c --create -m --migrate -C --clobber `gp list 2>/dev/null`"
+			opts=(-c --create -m --migrate -C --clobber `gp list 2>/dev/null`)
 			;;
 		cr) ;& create)
-			opts="-m --migrate"
+			opts=(-m --migrate)
 			;;
 		do)
-			opts="-f --force"
+			opts=(-f --force)
 			;;
 		i) ;& init)
-			opts="-F --follow-git -u --update-gitignore"
+			opts=(-F --follow-git -u --update-gitignore)
 			;;
 		ls) ;& list)
-			opts="-p --porcelain -H --human-readable"
+			opts=(-p --porcelain -H --human-readable)
 			;;
 		help)
-			opts="co checkout cr create do i init ls list"
+			opts=(co checkout cr create do i init ls list)
 			;;
    esac
 
-   COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+   COMPREPLY=($(compgen -W "${opts[*]}" -- "$cur"))
 }
 
 complete -F _gp gp
