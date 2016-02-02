@@ -273,6 +273,7 @@ list() {
 		for REPO in .gitparallel/*/; do
 			REPO=${REPO##.gitparallel/}
 			REPO=${REPO%%/}
+			checkName "$REPO" 2>/dev/null || continue
 			printf '%s%s%s\n' "`if ! $PORCELAIN; then
 				if [[ "$REPO" = "$ACTIVE" ]]; then
 					printf '* \033[32m'

@@ -301,6 +301,21 @@ list_porcelain() {
 	return 0
 }
 
+### Test the correct handling of illegal project names.
+TESTS+=(list_checkNames)
+list_checkNames() {
+	./gp init
+	./gp create a b c d || return 1
+	mkdir -- .gitparallel/'a
+												 b' \
+					 .gitparallel/.a \
+					 .gitparallel/--bogus \
+					 .gitparallel/'c d' \
+					 .gitparallel/'c	d' || return 2
+	[[ `./gp list | wc -l` = 4 ]] || return 3
+	return 0
+}
+
 ## == Tests for the `checkout` subcommand ==
 ### Test the basic functionality of the command.
 TESTS+=(checkout)
