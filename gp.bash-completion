@@ -32,44 +32,53 @@
 ################################################################################
 
 _gp() {
-	local cur prev opts IFS
-	cur="${COMP_WORDS[COMP_CWORD]}"
-	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts=()
-	IFS=$' \t\n'
+	local OPTS=()
+	local IFS=$' \t\n'
 
-	case "$prev" in
-		gp)
-			if [[ $COMP_CWORD = 1 ]]; then
-				opts=(help --version -v --help -h)
-				if [[ -d .gitparallel ]]; then
-					opts+=(co checkout cr create do ls list)
-				else
-					opts+=(i init)
+	if [[ $COMP_CWORD -le 1 ]]; then
+		# Perform completion for the base command.
+		OPTS=(help --version -v --help -h)
+		if [[ -d .gitparallel ]]; then
+			OPTS+=(co checkout cr create do ls list)
+		else
+			OPTS+=(i init)
+		fi
+	else
+		REPOS=" `gp list 2>/dev/null` "
+		# Perform completion for subcommands.
+		case "${COMP_WORDS[1]}" in
+			co) ;& checkout)
+				OPTS=(-c --create -m --migrate -C --clobber)
+				# Suggest repository names, if no repository has yet been specified.
+				REPO_SPECIFIED=false
+				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if grep -qF " ${COMP_WORDS[$I]} " <<<"$REPOS"; then
+						REPO_SPECIFIED=true
+					fi
+				done
+				if ! $REPO_SPECIFIED; then
+					OPTS+=($REPOS)
 				fi
-			fi
-			;;
-		co) ;& checkout)
-			opts=(-c --create -m --migrate -C --clobber `gp list 2>/dev/null`)
-			;;
-		cr) ;& create)
-			opts=(-m --migrate)
-			;;
-		do)
-			opts=(-f --force)
-			;;
-		i) ;& init)
-			opts=(-F --follow-git -u --update-gitignore)
-			;;
-		ls) ;& list)
-			opts=(-p --porcelain -H --human-readable)
-			;;
-		help)
-			opts=(co checkout cr create do i init ls list)
-			;;
-   esac
+				;;
+			cr) ;& create)
+				OPTS=(-m --migrate)
+				;;
+			do)
+				OPTS=(-f --force -- $REPOS)
+				;;
+			i) ;& init)
+				OPTS=(-F --follow-git -u --update-gitignore)
+				;;
+			ls) ;& list)
+				OPTS=(-p --porcelain -H --human-readable)
+				;;
+			help)
+				OPTS=(co checkout cr create do i init ls list)
+				;;
+		esac
+	fi
 
-   COMPREPLY=($(compgen -W "${opts[*]}" -- "$cur"))
+   COMPREPLY=($(compgen -W "${OPTS[*]}" -- "${COMP_WORDS[$COMP_CWORD]}"))
 }
 
 complete -F _gp gp
