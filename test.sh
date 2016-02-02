@@ -157,6 +157,8 @@ create_checkNames() {
 	{ rm -rf .gitparallel && ./gp init; } || return 7
 	./gp create a b --bogus d && return 8
 	./gp create a b bo-gus d || return 9
+	./gp create a b 'c d' && return 10
+	./gp create a b 'c	d' && return 11
 	return 0
 }
 
@@ -438,6 +440,8 @@ checkout_checkNames() {
 	./gp checkout --create a. || return 5
 	./gp checkout --create --bogus && return 6
 	./gp checkout --create bo-gus || return 7
+	./gp checkout --create a b 'c d' && return 8
+	./gp checkout --create a b 'c	d' && return 9
 	return 0
 }
 
