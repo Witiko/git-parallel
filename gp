@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
 #
-# gp - A tool for maintaining several Git repositories in a single directory
+# Git-parallel - A tool for maintaining several Git repos in a single directory
 # Copyright (C) 2016 Vít Novotný
 # 
 # This program is free software: you can redistribute it and/or modify
