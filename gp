@@ -464,10 +464,18 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 		return 6
 	fi
 
+	# Guard against harmless input.
+	if ! $CREATE && [[ "$REPO" = "`activeRepository`" ]]; then
+		info "The Git-parallel repository '%s' is already active." "$REPO"
+		return 0
+	fi
+
 	# Perform the main routine.
 	export OLDPWD && # Jump back to the original PWD for the `gp create` call.
-	{ ! $CREATE || (cd "$OLDPWD" && create `$MIGRATE &&
-		echo --migrate`	-- "$REPO"); } &&
+	if $CREATE; then
+		(cd "$OLDPWD" &&
+		create `$MIGRATE && echo --migrate` -- "$REPO")
+	fi &&
 	rm -rf .git && ln -s .gitparallel/"$REPO" .git &&
 
 	# Print additional information.
