@@ -39,7 +39,7 @@ _gp() {
 		# Perform completion for the base command.
 		OPTS=(help --version -v --help -h)
 		if [[ -d .gitparallel ]]; then
-			OPTS+=(co checkout cr create do ls list)
+			OPTS+=(co checkout cr create do ls list rm remove)
 		else
 			OPTS+=(i init)
 		fi
@@ -59,6 +59,9 @@ _gp() {
 				if ! $REPO_SPECIFIED; then
 					OPTS+=($REPOS)
 				fi
+				;;
+			rm) ;& remove)
+				OPTS=(-f --force $REPOS)
 				;;
 			cr) ;& create)
 				OPTS=(-m --migrate)
