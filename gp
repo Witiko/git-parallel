@@ -445,8 +445,10 @@ checkout() {
 	jumpToRoot .gitparallel || return 3
 	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && return 4
 	if [[ ! -d .gitparallel/"$REPO" ]] && ! $CREATE; then
-		error "The Git-parallel repository '%s' does not exist in '%s'." \
-			"$REPO" "$PWD"
+		errcat <<-EOF
+The Git-parallel repository '$REPO' does not exist in '$PWD'. Specify the -c /
+--create option to create the repository.
+		EOF
 		return 5
 	fi
 
