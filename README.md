@@ -10,6 +10,8 @@ being a symbolic link pointing to `.gitparallel/active-repo`.
 ## Requirements
 
  * [Bash 4+](https://www.gnu.org/software/bash/)
+ * `flock` from [`util-linux`](/karelzak/util-linux) (optional)
+ * `fmt` from [GNU Coreutils](http://www.gnu.org/software/coreutils/coreutils.html) (optional)
 
 ## How does `gp` relate to Git submodules?
 
