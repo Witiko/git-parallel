@@ -600,11 +600,9 @@ do_cmd() {
 	remember 1>&2 && {
 	for REPO in "${REPOS[@]}"; do
 		! checkout -- "$REPO" 1>&2 && ! $FORCE && break
-		if ! (cd "$PREVIOUS_PWD" && git "${COMMAND[@]}"); then
-      EXIT_CODE=$?
+		if (cd "$PREVIOUS_PWD" && git "${COMMAND[@]}"); then :; else
 			COMMAND_STRING="${COMMAND[@]}"
-			error "The command 'git %s' failed with an exit code of %d." \
-				"$COMMAND_STRING" $EXIT_CODE
+			error "The command 'git %s' failed." "$COMMAND_STRING"
 			! $FORCE && LOOP_BROKEN=true && break
 		fi
 	done
