@@ -38,10 +38,10 @@ wrap() {
 }
 
 # Emit info or warning messages.
-info() { printf "$1\n" "${@:2}" | wrap; }
-infocat() { wrap; }
-error() { info "${@}" 1>&2; }
-errcat() { infocat 1>&2; }
+info() { printf "$1\n" "${@:2}" | wrap 1>&2; }
+infocat() { wrap 1>&2; }
+error() { info "${@}"; }
+errcat() { infocat; }
 
 # Print the usage information.
 SUBCOMMANDS=()
@@ -127,21 +127,52 @@ checkName() {
 	fi
 }
 
+# Acquire the advisory lock for the subcommand $1.
+lock() {
+	local SUBCOMMAND=$1
+	if hash flock 2>&-; then
+		LOCKTYPE=$(eval echo \${LOCKING_$SUBCOMMAND})
+		if [[ $LOCKTYPE != none ]] && ROOT=`findRoot .gitparallel`; then
+			LOCKDESCRIPTOR=3
+			LOCKPATH=$ROOT/.gitparallel/.lock
+			eval exec $LOCKDESCRIPTOR\>$LOCKPATH
+			if ! flock --nonblock --$LOCKTYPE $LOCKDESCRIPTOR; then
+				# Be verbose, if the lock is currently held.
+				info "Acquiring an advisory %s lock on '%s' ..." $LOCKTYPE $LOCKPATH
+				if flock --$LOCKTYPE $LOCKDESCRIPTOR; then
+					info 'Successfully acquired the lock.'
+				else
+					error 'Failed to acquire the lock.'
+					return 1
+				fi
+			fi
+		fi
+	fi
+}
+
+# Retrieve the nearest directory containing the directory $1.
+findRoot() {
+	PTH=.
+	(while [[ $PWD != / && ! -d "$1" ]]; do
+		PTH=$PTH/..
+		cd ..
+	done
+	if [[ -d "$1" ]]; then
+		printf '%s\n' $PTH
+	else
+		return 1
+	fi)
+}
+
 # Retrieve the nearest directory containing the directory $1 and change the
 # working directory to it.
 jumpToRoot() {
-	ORIGINAL_PWD="$PWD"
-	[[ -d "$1" ]] && return 0
-	while [[ $PWD != / ]]; do
-		if cd ..; then
-			[[ -d "$1" ]] && return 0
-		else
-			return 1
-		fi
-	done
-	error "No directory '%s' was found in '%s' or its parents." "$1" \
-		"$ORIGINAL_PWD"
-	return 2
+	if ROOT=`findRoot "$1"`; then
+		cd $ROOT
+	else
+		error "No directory '%s' was found in '%s' or its parents." "$1" "$PWD"
+		return 1
+	fi
 }
 
 # Retrieve the currently active repository.
@@ -185,8 +216,11 @@ specified, the command will create the '.gitparallel' directory next to the
 current Git repository root rather than inside the current working directory.
 When the -u / --update-gitignore option is specified, an entry for the
 '.gitparallel' directory will be added to the '.gitignore' file.")
+LOCKING_init=none
+
 SYNOPSIS_i=("${SYNOPSIS_init[@]}")
 USAGE_i=("${USAGE_init[@]}")
+LOCKING_i=$LOCKING_init
 
 init() {
 	FOLLOW_GIT=false
@@ -214,7 +248,8 @@ init() {
 	fi
 
 	# Perform the main routine.
-	mkdir .gitparallel &&
+	mkdir .gitparallel-incomplete && touch .gitparallel-incomplete/.lock &&
+	mv .gitparallel-incomplete .gitparallel &&
 	info "Created a '.gitparallel' directory in '%s'." "$PWD" &&
 	if $UPDATE_GITIGNORE; then
 		if [[ ! -e .gitignore ]]; then
@@ -239,8 +274,11 @@ option is specified or when the output of the command gets piped outside the
 terminal, a raw newline-terminated list is produced, ready to be used by the
 'gp do' command.  When the -H / --human-readable option is specified or when
 the output of the command stays in the terminal, a formatted list is produced.")
+LOCKING_list=shared
+
 SYNOPSIS_ls=("${SYNOPSIS_list[@]}")
 USAGE_ls=("${USAGE_list[@]}")
+LOCKING_ls=$LOCKING_list
 
 list() {
 	if [[ -t 1 ]]; then
@@ -291,8 +329,11 @@ USAGE_create=(
 'creates new Git-parallel REPOsitories. When the -m / --migrate option is
 specified, the REPOsitories are initialized with the contents of the currently
 active Git repository.')
+LOCKING_create=exclusive
+
 SYNOPSIS_cr=("${SYNOPSIS_create[@]}")
 USAGE_cr=("${USAGE_create[@]}")
+LOCKING_cr=$LOCKING_create
 
 create() {
 	REPOS=()
@@ -343,8 +384,11 @@ SYNOPSIS_remove=('gp {rm | remove} [-f | --force] REPO...')
 USAGE_remove=(
 'removes the specified Git-parallel REPOsitories. Removing the currently active
 Git repository requires the -f / --force option.')
+LOCKING_remove=exclusive
+
 SYNOPSIS_rm=("${SYNOPSIS_remove[@]}")
 USAGE_rm=("${USAGE_remove[@]}")
+LOCKING_rm=$LOCKING_remove
 
 remove() {
 	REPOS=()
@@ -411,8 +455,11 @@ is specified, an equivalent of the 'gp create' command is performed beforehand.
 If there exists a '.git' directory that is not a symlink to '.gitparallel' and
 that would therefore be overriden by the switch, the -C / --clobber or the -m /
 migrate option is required.")
+LOCKING_checkout=exclusive
+
 SYNOPSIS_co=("${SYNOPSIS_checkout[@]}")
 USAGE_co=("${USAGE_checkout[@]}")
+LOCKING_co=$LOCKING_checkout
 
 checkout() {
 	REPO=
@@ -501,6 +548,7 @@ newline-separated list on the standard input and executes 'git COMMAND'. Should
 'git COMMAND' exit with a non-zero exit code, the 'gp do' command will be
 interrupted prematurely, unless the -f / --force option is specified. After the
 command has ended, the original Git repository will be restored.")
+LOCKING_do=exclusive
 
 do_cmd() {
 	REPOS=()
@@ -558,20 +606,6 @@ do_cmd() {
 		fi
 	done
 
-  # Acquire the lock.
-  LOCK=.gitparallel/.lock
-  if ! (set -o noclobber; echo "$$" >"$LOCK") 2>&-; then
-		errcat <<-EOF
-There appears to be another 'gp do' command underway ran by a process with the
-PID `cat "$LOCK"`. If you are certain this is not the case, then remove the
-file '$LOCK' from '$PWD' and rerun the command.
-		EOF
-		return 6
-	fi
-
-  # Schedule the release of the lock.
-  trap "rm '$LOCK'" EXIT
-
 	# Perform the main routine.
 	LOOP_BROKEN=false
 	remember 1>&2 && {
@@ -586,7 +620,7 @@ file '$LOCK' from '$PWD' and rerun the command.
 		fi
 	done
 	restore 1>&2; }
-	! $LOOP_BROKEN || return 7
+	! $LOOP_BROKEN || return 6
 }
 
 # == The main routine ==
@@ -614,4 +648,4 @@ case "$1" in
 esac
 
 # Execute the subcommand.
-$SUBCOMMAND "${@:2}"
+lock $1 && $SUBCOMMAND "${@:2}"
