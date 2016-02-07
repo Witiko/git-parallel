@@ -523,6 +523,16 @@ do_restore() {
 	return 0
 }
 
+### Test the non-expansion of arguments.
+TESTS+=(do_eval)
+do_eval() {
+	./gp init
+	./gp create a b c || return 1
+	./gp do `./gp list` -- init || return 2
+	./gp do `./gp list` -- status '(' || return 3
+	return 0
+}
+
 ## == Tests for the `foreach` subcommand ==
 ### Test the correct functionality of the command.
 TESTS+=(foreach)
@@ -594,6 +604,16 @@ foreach_restore() {
 	./gp foreach status --porcelain || return 5
 	./gp foreach status --porcelain || return 6
 	[[ -e .git/foobar ]] || return 7
+	return 0
+}
+
+### Test the non-expansion of arguments.
+TESTS+=(foreach_eval)
+foreach_eval() {
+	./gp init
+	./gp create a b c || return 1
+	./gp foreach init || return 2
+	./gp foreach status '(' || return 3
 	return 0
 }
 

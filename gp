@@ -20,6 +20,7 @@
 ################################################################################
 
 # == The initial setup ==
+OLDIFS="$IFS"
 export IFS=
 
 # == Helper functions ==
@@ -643,7 +644,9 @@ foreach() {
 	done
 
 	# Perform the main routine.
-	eval do_cmd `$FORCE && echo --force` $(list | tr '\n' ' ') -- "${COMMAND[@]}"
+	local IFS="$OLDIFS"
+	LIST=($(list))
+	do_cmd `$FORCE && echo --force` ${LIST[*]} -- "${COMMAND[@]}"
 }
 
 # == The main routine ==
