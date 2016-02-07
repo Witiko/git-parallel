@@ -581,6 +581,7 @@ do_cmd() {
 	done
 
 	# Guard against bad input.
+	PREVIOUS_PWD="$PWD"
 	jumpToRoot .gitparallel || return 3
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
@@ -599,7 +600,7 @@ do_cmd() {
 	remember 1>&2 && {
 	for REPO in "${REPOS[@]}"; do
 		! checkout -- "$REPO" 1>&2 && ! $FORCE && break
-		if git "${COMMAND[@]}"; then :; else
+		if ! (cd "$PREVIOUS_PWD" && git "${COMMAND[@]}"); then
       EXIT_CODE=$?
 			COMMAND_STRING="${COMMAND[@]}"
 			error "The command 'git %s' failed with an exit code of %d." \
@@ -644,7 +645,7 @@ foreach() {
 	done
 
 	# Perform the main routine.
-	eval do_cmd `$FORCE && echo --force` `list | tr '\n' ' '` -- "${COMMAND[@]}"
+	eval do_cmd `$FORCE && echo --force` $(list | tr '\n' ' ') -- "${COMMAND[@]}"
 }
 
 # == The main routine ==

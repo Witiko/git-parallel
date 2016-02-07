@@ -494,6 +494,19 @@ do_noinit() {
 	return 0
 }
 
+### Test that the command does not change the current working directory.
+TESTS+=(do_pwd)
+do_pwd() {
+	./gp init
+	./gp checkout --create master || return 1
+	./gp do master -- init || return 2
+	mkdir aaa
+	cd aaa
+	touch bbb
+	../gp do master -- add bbb || return 3
+	return 0
+}
+
 ### Test the restoration of the previous environment.
 TESTS+=(do_restore)
 do_restore() {
@@ -510,7 +523,7 @@ do_restore() {
 	return 0
 }
 
-## == Tests for the `do` subcommand ==
+## == Tests for the `foreach` subcommand ==
 ### Test the correct functionality of the command.
 TESTS+=(foreach)
 foreach() {
@@ -552,6 +565,19 @@ foreach_noinit() {
 	./gp create a b c || return 1
 	rm -r .gitparallel
 	./gp foreach init && return 2
+	return 0
+}
+
+### Test that the command does not change the current working directory.
+TESTS+=(foreach_pwd)
+foreach_pwd() {
+	./gp init
+	./gp checkout --create master || return 1
+	./gp foreach init || return 2
+	mkdir aaa
+	cd aaa
+	touch bbb
+	../gp foreach add bbb || return 3
 	return 0
 }
 
