@@ -46,7 +46,7 @@ errcat() { infocat; }
 # Print the usage information.
 SUBCOMMANDS=()
 usage() {
-	cat <<-'EOF'
+	infocat <<-'EOF'
 Usage:
 
 	EOF
@@ -58,14 +58,27 @@ Usage:
 	done | sort | uniq | while read COMMAND; do
 		info "$COMMAND"
 	done
-	(cat <<'EOF'
+	infocat <<'EOF'
 
 To see more information about any individual COMMAND, execute
 
   gp help COMMAND
 
 EOF
-	) | infocat
+	if { ! hash flock || ! hash fmt; } 2>&-; then
+		info 'The following suggested binaries are unavailable at your system:'
+		hash flock 2>&- && infocat <<'EOF'
+
+  'flock' is used to perform advisory locking, when Git-parallel commands are
+executed. This can prevent race conditions on multi-user systems.
+EOF
+		hash fmt 2>&- && infocat <<'EOF'
+
+  'fmt' is used to wrap the text output of Git-parallel, so that it fits your
+terminal neatly.
+EOF
+	info
+	fi
 	info 'Report bugs to: <witiko@mail.muni.cz>'
 	info 'Git-parallel home page: <http://github.com/witiko/Git-parallel>'
 }
