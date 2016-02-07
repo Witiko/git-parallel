@@ -461,25 +461,26 @@ checkout_checkNames() {
 }
 
 ## == Tests for the `do` subcommand ==
-### Test the correct functionality of the stdin repo input overload.
-TESTS+=(do_cmd_stdin)
-do_cmd_stdin() {
-	./gp init
-	./gp create a b c || return 1
-	./gp list | ./gp do status --porcelain && return 2
-	./gp list | ./gp do init || return 3
-	./gp list | ./gp do status --porcelain || return 4
-	return 0
-}
-
-### Test the correct functionality of the args repo input overload.
-TESTS+=(do_cmd_args)
-do_cmd_args() {
+### Test the correct functionality of the command.
+TESTS+=(do_cmd)
+do_cmd() {
 	./gp init
 	./gp create a b c || return 1
 	./gp do a b c -- status --porcelain && return 2
 	./gp do a b c -- init || return 3
 	./gp do a b c -- status --porcelain || return 4
+	return 0
+}
+
+### Test the correct handling of the -f / --force option.
+TESTS+=(do_force)
+do_force() {
+	./gp init
+	./gp create a b c || return 1
+	./gp do a b c -- status --porcelain && return 2
+	./gp do -f a b c -- status --porcelain || return 3
+	./gp do a b c --force -- status --porcelain || return 4
+	./gp do a b c -- status --porcelain && return 5
 	return 0
 }
 
@@ -489,7 +490,7 @@ do_noinit() {
 	./gp init
 	./gp create a b c || return 1
 	rm -r .gitparallel
-	./gp list | ./gp do init && return 2
+	./gp do `./gp list` -- init && return 2
 	return 0
 }
 
@@ -498,25 +499,75 @@ TESTS+=(do_restore)
 do_restore() {
 	./gp init
 	./gp create a b c || return 1
-	./gp list | ./gp do init || return 2
-	./gp list | ./gp do status --porcelain || return 3
+	./gp do `./gp list` -- init || return 2
+	./gp do `./gp list` -- status --porcelain || return 3
 	[[ -e .git ]] && return 4
 	mkdir .git
 	touch .git/foobar
-	./gp list | ./gp do status --porcelain || return 5
-	./gp list | ./gp do status --porcelain || return 6
+	./gp do `./gp list` -- status --porcelain || return 5
+	./gp do `./gp list` -- status --porcelain || return 6
 	[[ -e .git/foobar ]] || return 7
 	return 0
 }
 
-### Test the command's locking mechanism.
-TESTS+=(do_lock)
-do_lock() {
+## == Tests for the `do` subcommand ==
+### Test the correct functionality of the command.
+TESTS+=(foreach)
+foreach() {
 	./gp init
 	./gp create a b c || return 1
-	./gp list | ./gp do init || return 2
-	touch .gitparallel/.lock || return 3
-	./gp list | ./gp do init && return 4
+	./gp foreach status --porcelain && return 2
+	./gp foreach init || return 3
+	./gp foreach status --porcelain || return 4
+	return 0
+}
+
+### Test the correct handling of the command alias.
+TESTS+=(foreach_alias)
+foreach_alias() {
+	./gp init
+	./gp create a b c || return 1
+	./gp fe status --porcelain && return 2
+	./gp fe init || return 3
+	./gp fe status --porcelain || return 4
+	return 0
+}
+
+### Test the correct handling of the -f / --force option.
+TESTS+=(foreach_force)
+foreach_force() {
+	./gp init
+	./gp create a b c || return 1
+	./gp foreach status --porcelain && return 2
+	./gp foreach -f status --porcelain || return 3
+	./gp foreach --force status --porcelain || return 4
+	./gp foreach status --porcelain && return 5
+	return 0
+}
+
+### Test that the command fails without `init`.
+TESTS+=(foreach_noinit)
+foreach_noinit() {
+	./gp init
+	./gp create a b c || return 1
+	rm -r .gitparallel
+	./gp foreach init && return 2
+	return 0
+}
+
+### Test the restoration of the previous environment.
+TESTS+=(foreach_restore)
+foreach_restore() {
+	./gp init
+	./gp create a b c || return 1
+	./gp foreach init || return 2
+	./gp foreach status --porcelain || return 3
+	[[ -e .git ]] && return 4
+	mkdir .git
+	touch .git/foobar
+	./gp foreach status --porcelain || return 5
+	./gp foreach status --porcelain || return 6
+	[[ -e .git/foobar ]] || return 7
 	return 0
 }
 

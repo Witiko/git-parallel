@@ -39,7 +39,7 @@ _gp() {
 		# Perform completion for the base command.
 		OPTS=(help --version -v --help -h)
 		if [[ -d .gitparallel ]]; then
-			OPTS+=(co checkout cr create do ls list rm remove)
+			OPTS+=(co checkout cr create do ls list rm remove fe foreach)
 		else
 			OPTS+=(i init)
 		fi
@@ -54,6 +54,7 @@ _gp() {
 				for ((I = 2; I < $COMP_CWORD; I++)); do
 					if grep -qF " ${COMP_WORDS[$I]} " <<<"$REPOS"; then
 						REPO_SPECIFIED=true
+						break
 					fi
 				done
 				if ! $REPO_SPECIFIED; then
@@ -67,7 +68,25 @@ _gp() {
 				OPTS=(-m --migrate)
 				;;
 			do)
-				OPTS=(-f --force -- $REPOS)
+				# Suggest the -f / --force option and repository names, if the user has
+				# not yet typed --.
+				TYPING_COMMAND=false
+				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if [[ "${COMP_WORDS[$I]}" = -- ]]; then
+						TYPING_COMMAND=true
+						break
+					fi
+				done
+				if ! $TYPING_COMMAND; then
+					OPTS=(-f --force $REPOS)
+				fi
+				;;
+			fe) ;& foreach)
+				# Suggest the -f / --force option, if the user is typing the argument
+				# immediately following 'gp foreach'.
+				if [[ $COMP_CWORD = 2 ]]; then
+					OPTS=(-f --force)
+				fi
 				;;
 			i) ;& init)
 				OPTS=(-F --follow-git -u --update-gitignore)

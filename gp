@@ -85,7 +85,7 @@ EOF
 
 # Print the version information.
 version() {
-	info 'Git-parallel version 1.2.5'
+	info 'Git-parallel version 1.3.0'
 	info 'Copyright © 2016 Vít Novotný'
 	infocat <<-'EOF'
 		License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
@@ -548,19 +548,13 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 
 SUBCOMMANDS+=(do)
 SYNOPSIS_do=(
-'gp do [-f | --force] REPO... -- COMMAND'
-'... | gp do [-f | --force] COMMAND')
+'gp do [-f | --force] REPO... -- COMMAND')
 USAGE_do=(
 "switches to every specified Git-parallel REPOsitory and executes 'git
 COMMAND'. Should 'git COMMAND' exit with a non-zero exit code, the 'gp do'
 command will be interrupted prematurely, unless the -f / --force option is
 specified. After the command has ended, the original Git repository will be
-restored."
-"switches to every Git-parallel repository that is received as a part of a
-newline-separated list on the standard input and executes 'git COMMAND'. Should
-'git COMMAND' exit with a non-zero exit code, the 'gp do' command will be
-interrupted prematurely, unless the -f / --force option is specified. After the
-command has ended, the original Git repository will be restored.")
+restored.")
 LOCKING_do=exclusive
 
 do_cmd() {
@@ -568,42 +562,23 @@ do_cmd() {
 	COMMAND=()
 	FORCE=false
 
-	# Collect the options.
-	ACCUMULATOR=()
-	STDIN_INPUT=true
+	# Collect the options and repositories.
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			-f)														;& # fall-through
 			--force)	FORCE=true					;;
-			--)				STDIN_INPUT=false
-								shift; break				;;
-			 *)				ACCUMULATOR+=("$1")	;;
+			--)				shift; break				;;
+			 *)				checkName "$1" || return 1
+								REPOS+=("$1")				;;
 		esac
 		shift
 	done
 
-	# Handle the overloading.
-	if $STDIN_INPUT; then
-		COMMAND=("${ACCUMULATOR[@]}")
-
-		# Collect the repositories.
-		while read REPO; do
-		  checkName "$REPO" || return 1
-			REPOS+=("$REPO")
-		done
-	else
-		# Verify the repository names.
-		REPOS=("${ACCUMULATOR[@]}")
-		for REPO in "${REPOS[@]}"; do
-		  checkName "$REPO" || return 2
-		done
-
-		# Collect the command.
-		while [[ $# -gt 0 ]]; do
-			COMMAND+=("$1")
-			shift
-		done
-	fi
+	# Collect the Git command.
+	while [[ $# -gt 0 ]]; do
+		COMMAND+=("$1")
+		shift
+	done
 
 	# Guard against bad input.
 	jumpToRoot .gitparallel || return 3
@@ -636,6 +611,42 @@ do_cmd() {
 	! $LOOP_BROKEN || return 6
 }
 
+SUBCOMMANDS+=(foreach fe)
+SYNOPSIS_foreach=(
+'gp {foreach | fe} [-f | --force] COMMAND')
+USAGE_foreach=(
+"switches to every Git-parallel REPOsitory and executes 'git COMMAND'. Should
+'git COMMAND' exit with a non-zero exit code, the 'gp foreach' command will be
+interrupted prematurely, unless the -f / --force option is specified. After the
+command has ended, the original Git repository will be restored.")
+LOCKING_foreach=exclusive
+
+SYNOPSIS_fe=("${SYNOPSIS_foreach[@]}")
+USAGE_fe=("${USAGE_foreach[@]}")
+LOCKING_fe=$LOCKING_foreach
+
+foreach() {
+	COMMAND=()
+	FORCE=false
+
+	# Collect the options.
+	case "$1" in
+		-f)														;& # fall-through
+		--force)	FORCE=true					;;
+		 *)				COMMAND+=("$1")			;;
+	esac
+	shift
+
+	# Collect the Git command.
+	while [[ $# -gt 0 ]]; do
+		COMMAND+=("$1")
+		shift
+	done
+
+	# Perform the main routine.
+	eval do_cmd `$FORCE && echo --force` `list | tr '\n' ' '` -- "${COMMAND[@]}"
+}
+
 # == The main routine ==
 
 # Collect the options.
@@ -652,6 +663,8 @@ case "$1" in
 	co)															;& # fall-through
 	checkout)		SUBCOMMAND=checkout	;;
 	do)					SUBCOMMAND=do_cmd		;;
+	fe)															;& # fall-through
+	foreach)		SUBCOMMAND=foreach	;;
 	help)				SUBCOMMAND=help			;;
 	-v)															;& # fall-through
 	--version)	version; exit 0			;;

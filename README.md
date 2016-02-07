@@ -76,8 +76,8 @@ basic usage of `gp`:
 	# Creates two empty gp repositories.
 	gp init
 	gp create repoA repoB
-	gp ls | gp do init
-	gp ls | gp do commit -m 'initial commit.'
+	gp foreach init
+	gp foreach commit -m 'initial commit.'
 
 	# Migrates an existing Git repository to gp.
 	gp create --migrate repoC
