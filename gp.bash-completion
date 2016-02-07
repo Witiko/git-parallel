@@ -44,16 +44,16 @@ _gp() {
 			OPTS+=(i init)
 		fi
 	else
-		REPOS=" `gp list 2>/dev/null` "
+		local REPOS=" `gp list 2>/dev/null` "
 		# Perform completion for subcommands.
 		case "${COMP_WORDS[1]}" in
 			co) ;& checkout)
 				OPTS=(-c --create -m --migrate -C --clobber)
 				# Suggest repository names, if no repository has yet been specified.
-				REPO_SPECIFIED=false
+				local REPO_SPECIFIED=false
 				for ((I = 2; I < $COMP_CWORD; I++)); do
 					if grep -qF " ${COMP_WORDS[$I]} " <<<"$REPOS"; then
-						REPO_SPECIFIED=true
+						local REPO_SPECIFIED=true
 						break
 					fi
 				done
@@ -70,7 +70,7 @@ _gp() {
 			do)
 				# Suggest the -f / --force option and repository names, if the user has
 				# not yet typed --.
-				TYPING_COMMAND=false
+				local TYPING_COMMAND=false
 				for ((I = 2; I < $COMP_CWORD; I++)); do
 					if [[ "${COMP_WORDS[$I]}" = -- ]]; then
 						TYPING_COMMAND=true
@@ -95,7 +95,7 @@ _gp() {
 				OPTS=(-p --porcelain -H --human-readable)
 				;;
 			help)
-				OPTS=(co checkout cr create do i init ls list)
+				OPTS=(co checkout cr create do i init ls list fe foreach)
 				;;
 		esac
 	fi
