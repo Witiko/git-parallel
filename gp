@@ -48,7 +48,7 @@ errcat() { infocat; }
 declare -A NAME_TO_FUNCTION LOCKS SYNOPSES USAGES
 declare -a SUBCOMMANDS
 newSubcommand() {
-	LOCK=none
+	local FUNCTION LOCK=none SYNOPSIS USAGE NAMES=() HIDDEN=false
 
 	# Collect the options.
 	while [[ $# -gt 0 ]]; do
@@ -153,7 +153,7 @@ EOF
 
 # Print the version information.
 version() {
-	info 'Git-parallel version 1.3.0'
+	info 'Git-parallel version 1.3.1'
 	info 'Copyright © 2016 Vít Novotný'
 	infocat <<-'EOF'
 		License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
@@ -213,7 +213,7 @@ lock() {
 
 # Retrieve the nearest directory containing the directory $1.
 findRoot() {
-	PTH=.
+	local PTH=.
 	(while [[ $PWD != / && ! -d "$1" ]]; do
 		PTH=$PTH/..
 		cd ..
@@ -228,6 +228,7 @@ findRoot() {
 # Retrieve the nearest directory containing the directory $1 and change the
 # working directory to it.
 jumpToRoot() {
+	local ROOT
 	if ROOT=`findRoot "$1"`; then
 		cd $ROOT
 	else
@@ -238,32 +239,39 @@ jumpToRoot() {
 
 # Retrieve the currently active repository.
 activeRepository() {
-	LINK="`readlink .git`" &&
+	local LINK="`readlink .git`" &&
 	[[ "$LINK" =~ ^\.gitparallel/ ]] && printf '%s\n' "${LINK#.gitparallel/}"
 }
 
-# Remembering the current repository consists of pushing the contents of the
-# .git symlink into the stack.
-REMEMBERED=
-remember() {
-	if [[ -e .git ]]; then
-		REMEMBERED="`mktemp -d`" &&
-		mv .git "$REMEMBERED"
-	fi
-}
-
-# Restoring a repository consists of popping a path from the stack and
-# switching to the path.
-restore() {
-	# Perform the main routine.
-	rm .git &&
-	if [[ -n "$REMEMBERED" ]]; then
-		mv "$REMEMBERED"/.git .git &&
-		REMEMBERED= &&
-		info "Restored the original Git repository in '%s'." "$PWD"
-	else
-		info "Removed the '.git' symlink from '%s'." "$PWD"
-	fi
+# Remember or restore the current repository status.
+stash() {
+	local STASH=.gitparallel/.stashed
+	case "$1" in
+		remember)
+			if [[ -e "$STASH" ]]; then
+				error "There already exists a %s stashed at '%s'." \
+					`if [[ -d "$STASH" ]]; then
+						printf 'Git repository'
+					else
+						printf 'symlink to a Git-parallel repository'
+					fi` "$PWD"/"$STASH"
+				return 1
+			fi
+			if [[ -e .git ]]; then
+				mv .git "$STASH"
+			fi	;;
+		restore)
+			rm .git &&
+			if [[ -e "$STASH" ]]; then
+				mv "$STASH" .git &&
+				info "Restored the original Git repository in '%s'." "$PWD"
+			else
+				info "Removed the '.git' symlink from '%s'." "$PWD"
+			fi	;;
+		*)
+			error "Unknown stash subcommand '%s'." "$1"
+			return 2
+	esac
 }
 
 # == Subcommands ==
@@ -286,7 +294,7 @@ help() {
 	fi
 
 	# Perform the main routine.
-	SUBCOMMAND="${NAME_TO_FUNCTION["$1"]}"
+	local SUBCOMMAND="${NAME_TO_FUNCTION["$1"]}"
 	info '\n  %s\n' "${SYNOPSES[$SUBCOMMAND]}"
 	info '%s\n' "${USAGES[$SUBCOMMAND]}"
 }
@@ -306,8 +314,8 @@ When the -u / --update-gitignore option is specified, an entry for the
 '.gitparallel' directory will be added to the '.gitignore' file."
 
 init() {
-	FOLLOW_GIT=false
-	UPDATE_GITIGNORE=false
+	local FOLLOW_GIT=false
+	local UPDATE_GITIGNORE=false
 
 	# Collect the options.
 	while [[ $# -gt 0 ]]; do
@@ -363,6 +371,7 @@ terminal, a raw newline-terminated list is produced.  When the -H /
 the terminal, a formatted list is produced."
 
 list() {
+	local PORCELAIN
 	if [[ -t 1 ]]; then
 		PORCELAIN=false
 	else
@@ -388,9 +397,9 @@ list() {
 
 	# Perform the main routine.
 	if [[ -d .gitparallel ]]; then
-		ACTIVE="`activeRepository`"
+		local ACTIVE="`activeRepository`"
 		(shopt -s nullglob
-		for REPO in .gitparallel/*/; do
+		local REPO; for REPO in .gitparallel/*/; do
 			REPO=${REPO##.gitparallel/}
 			REPO=${REPO%%/}
 			checkName "$REPO" 2>/dev/null || continue
@@ -417,8 +426,8 @@ specified, the REPOsitories are initialized with the contents of the currently
 active Git repository.'
 
 create() {
-	REPOS=()
-	MIGRATE=false
+	local REPOS=()
+	local MIGRATE=false
 
 	# Collect the options.
 	while [[ $# -gt 0 ]]; do
@@ -433,13 +442,14 @@ create() {
 	done
 	
 	# Guard against bad input.
+	local GIT_ROOT
 	$MIGRATE && ! GIT_ROOT="`jumpToRoot .git && printf '%s\n' "$PWD"`" && return 2
 	jumpToRoot .gitparallel || return 3
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
 		return 4
 	fi
-	for REPO in "${REPOS[@]}"; do
+	local REPO; for REPO in "${REPOS[@]}"; do
 		if [[ -d .gitparallel/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' already exists." "$REPO"
 			return 5
@@ -448,7 +458,7 @@ create() {
 
 	# Perform the main routine.
 	for REPO in "${REPOS[@]}"; do
-		PATHNAME=.gitparallel/"$REPO" 
+		local PATHNAME=.gitparallel/"$REPO" 
 		if $MIGRATE; then
 			cp -a "$GIT_ROOT"/.git/ "$PATHNAME" &&
 			info "Migrated '%s/.git' to '%s/%s'." "$GIT_ROOT" "$PWD" "$PATHNAME"
@@ -471,8 +481,8 @@ newSubcommand     \
 Git repository requires the -f / --force option.'
 
 remove() {
-	REPOS=()
-	FORCE=false
+	local REPOS=()
+	local FORCE=false
 
 	# Collect the options.
 	while [[ $# -gt 0 ]]; do
@@ -492,7 +502,7 @@ remove() {
 		error 'No Git-parallel repositories were specified.'
 		return 3
 	fi
-	for REPO in "${REPOS[@]}"; do
+	local REPO; for REPO in "${REPOS[@]}"; do
 		if [[ ! -d .gitparallel/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' does not exist in '%s'." \
 				"$REPO" "$PWD"
@@ -501,7 +511,7 @@ remove() {
 	done
 
 	# Guard against dubious input.
-	ACTIVE="`activeRepository`"
+	local ACTIVE="`activeRepository`"
 	for REPO in "${REPOS[@]}"; do
 		if [[ "$REPO" = "$ACTIVE" ]] && ! $FORCE; then
 			errcat <<EOF
@@ -540,10 +550,10 @@ beforehand.  If there exists a '.git' directory that is not a symlink to
 --clobber or the -m / migrate option is required."
 
 checkout() {
-	REPO=
-	CREATE=false
-	MIGRATE=false
-	CLOBBER=false
+	local REPO=
+	local CREATE=false
+	local MIGRATE=false
+	local CLOBBER=false
 
 	# Collect the options.
 	while [[ $# -gt 0 ]]; do
@@ -625,9 +635,9 @@ specified. After the command has ended, the original Git repository will be
 restored."
 
 do_cmd() {
-	REPOS=()
-	COMMAND=()
-	FORCE=false
+	local REPOS=()
+	local COMMAND=()
+	local FORCE=false
 
 	# Collect the options and repositories.
 	while [[ $# -gt 0 ]]; do
@@ -648,13 +658,13 @@ do_cmd() {
 	done
 
 	# Guard against bad input.
-	PREVIOUS_PWD="$PWD"
+	local PREVIOUS_PWD="$PWD"
 	jumpToRoot .gitparallel || return 3
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
 		return 4
 	fi
-	for REPO in "${REPOS[@]}"; do
+	local REPO; for REPO in "${REPOS[@]}"; do
 		if [[ ! -d .gitparallel/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' does not exist in '%s'." \
 				"$REPO" "$PWD"
@@ -663,17 +673,17 @@ do_cmd() {
 	done
 
 	# Perform the main routine.
-	LOOP_BROKEN=false
-	remember 1>&2 && {
+	local LOOP_BROKEN=false
+	stash remember 1>&2 && {
 	for REPO in "${REPOS[@]}"; do
 		! checkout -- "$REPO" 1>&2 && ! $FORCE && break
 		if (cd "$PREVIOUS_PWD" && git "${COMMAND[@]}"); then :; else
-			COMMAND_STRING="${COMMAND[@]}"
+			local COMMAND_STRING="${COMMAND[@]}"
 			error "The command 'git %s' failed." "$COMMAND_STRING"
 			! $FORCE && LOOP_BROKEN=true && break
 		fi
 	done
-	restore 1>&2; }
+	stash restore 1>&2; }
 	! $LOOP_BROKEN || return 6
 }
 
@@ -690,8 +700,8 @@ interrupted prematurely, unless the -f / --force option is specified. After the
 command has ended, the original Git repository will be restored."
 
 foreach() {
-	COMMAND=()
-	FORCE=false
+	local COMMAND=()
+	local FORCE=false
 
 	# Collect the options.
 	case "$1" in
@@ -709,7 +719,7 @@ foreach() {
 
 	# Perform the main routine.
 	local IFS="$OLDIFS"
-	LIST=($(list))
+	local LIST=($(list))
 	do_cmd `$FORCE && echo --force` ${LIST[*]} -- "${COMMAND[@]}"
 }
 
