@@ -44,20 +44,87 @@ infocat() { wrap 1>&2; }
 error() { info "${@}"; }
 errcat() { infocat; }
 
+# Register a new subcommand.
+declare -A NAME_TO_FUNCTION LOCKS SYNOPSES USAGES
+declare -a SUBCOMMANDS
+newSubcommand() {
+	LOCK=none
+
+	# Collect the options.
+	while [[ $# -gt 0 ]]; do
+		local KEY="${1%%=*}"
+		local VALUE="${1#*=}"
+		if [[ -z "$VALUE" ]]; then
+			error "%s: Empty value specified for '%s'." "$VALUE"
+			return 1
+		fi
+		case "$KEY" in
+			FUNCTION)	FUNCTION=$VALUE										;;
+			LOCK)			LOCK=$VALUE												;;
+			SYNOPSIS)	SYNOPSIS="$VALUE"									;;
+			USAGE)		USAGE="$VALUE"										;;
+			HIDDEN)		HIDDEN=true												;;
+			NAMES)																			;& # fall-through
+			NAME)			IFS=, read -ra NAMES <<<"$VALUE"	;;
+			*)				error "An unexpected argument '%s'." "$1"
+								return 2													;;
+		esac
+		shift
+	done
+
+	# Guard against bad input.
+	if [[ -z "$FUNCTION" ]]; then
+		error '%s: No function name specified.' $FUNCTION
+		return 3
+	fi
+	if [[ ! "$LOCK" =~ none|shared|exclusive ]]; then
+		error "%s: An unknown lock type '%s' specified." $FUNCTION "$LOCK"
+	fi
+	if ! $HIDDEN; then
+		if [[ -z "$SYNOPSIS" ]]; then
+			error '%s: No synopsis specified.' $FUNCTION
+			return 4
+		fi
+		if [[ -z "$USAGE" ]]; then
+			error '%s: No usage specified.' $FUNCTION
+			return 5
+		fi
+	fi
+	if [[ "${#NAMES[@]}" = 0 ]]; then
+		error '%s: No names specified.' $FUNCTION
+		return 6
+	fi
+	for NAME in "${NAMES[@]}"; do
+		if [[ -v NAME_TO_FUNCTION["$NAME"] ]]; then
+			error "%s: Subcommand name '%s' already registered." $FUNCTION "$NAME"
+			return 7
+		fi
+	done
+	if [[ " ${SUBCOMMANDS[@]} " =~ " $FUNCTION " ]]; then
+		error "%s: Function has already been registered." $FUNCTION
+		return 8
+	fi
+
+	# Perform the main routine.
+	for NAME in "${NAMES[@]}"; do
+		NAME_TO_FUNCTION["$NAME"]=$FUNCTION
+	done
+	LOCKS[$FUNCTION]=$LOCK
+	if ! $HIDDEN; then
+		SYNOPSES[$FUNCTION]="$SYNOPSIS"
+		USAGES[$FUNCTION]="$USAGE"
+		SUBCOMMANDS+=($FUNCTION)
+	fi
+}
+
 # Print the usage information.
-SUBCOMMANDS=()
 usage() {
 	infocat <<-'EOF'
 Usage:
 
 	EOF
-	for CMD in "${SUBCOMMANDS[@]}"; do
-		(IFS=' '; for INDEX in $(eval echo '${!'`echo "SYNOPSIS_$CMD"`'[@]}'); do
-			SYNOPSIS=$(eval echo '${'`echo "SYNOPSIS_$CMD"`"[$INDEX]}")
-			printf '  %s\n' "$SYNOPSIS"
-		done)
-	done | sort | uniq | while read COMMAND; do
-		info "$COMMAND"
+	for SUBCOMMAND in "${SUBCOMMANDS[@]}"; do
+		info '  %s' "${SYNOPSES[$SUBCOMMAND]}"
 	done
 	infocat <<'EOF'
 
@@ -95,26 +162,6 @@ version() {
 	EOF
 }
 
-# Print help for a specific subcommand.
-help() {
-	# Guard against empty input.
-	[[ $# = 0 ]] && usage && return 0
-
-	# Guard against bad input.
-	if [[ ! "$1" =~ ^[[:alpha:]]*$ || ! " ${SUBCOMMANDS[@]} " =~ " $1 " ]]; then
-		error "There is no command '%s'." "$1"
-		return 1
-	fi
-
-	# Perform the main routine.
-	(IFS=' '; for INDEX in $(eval echo '${!'`echo "SYNOPSIS_$1"`'[@]}'); do
-		SYNOPSIS=$(eval echo '${'`echo "SYNOPSIS_$1"`"[$INDEX]}")
-		USAGE=$(eval echo '${'`echo "USAGE_$1"`"[$INDEX]}")
-		info '\n  %s\n' "$SYNOPSIS"
-		info '%s' "$USAGE"
-	done; echo)
-}
-
 # Check if the repository name is admissible.
 checkName() {
 	if [[ -z "$1" ]]; then
@@ -145,7 +192,7 @@ checkName() {
 lock() {
 	local SUBCOMMAND=$1
 	if hash flock 2>&-; then
-		LOCKTYPE=$(eval echo \${LOCKING_$SUBCOMMAND})
+		LOCKTYPE=${LOCKS[$SUBCOMMAND]}
 		if [[ $LOCKTYPE != none ]] && ROOT=`findRoot .gitparallel`; then
 			LOCKDESCRIPTOR=3
 			LOCKPATH=$ROOT/.gitparallel/.lock
@@ -221,20 +268,42 @@ restore() {
 
 # == Subcommands ==
 
-SUBCOMMANDS+=(init i)
-SYNOPSIS_init=('gp {i | init} [-F | --follow-git] [-u | --update-gitignore]')
-USAGE_init=(
+newSubcommand   \
+	FUNCTION=help \
+	NAMES=help    \
+	LOCK=none     \
+	HIDDEN
+
+help() {
+	# Guard against empty input.
+	[[ $# = 0 ]] && usage && return 0
+
+	# Guard against bad input.
+	if [[ ! -v NAME_TO_FUNCTION["$1"] ||
+	! " ${SUBCOMMANDS[@]} " =~ " ${NAME_TO_FUNCTION["$1"]} " ]]; then
+		error "There is no command '%s'." "$1"
+		return 1
+	fi
+
+	# Perform the main routine.
+	SUBCOMMAND="${NAME_TO_FUNCTION["$1"]}"
+	info '\n  %s\n' "${SYNOPSES[$SUBCOMMAND]}"
+	info '%s\n' "${USAGES[$SUBCOMMAND]}"
+}
+
+newSubcommand   \
+	FUNCTION=init \
+	NAMES=i,init  \
+	LOCK=none     \
+	SYNOPSIS=\
+'gp {i | init} [-F | --follow-git] [-u | --update-gitignore]' \
+	USAGE=\
 "creates a new '.gitparallel' directory that is going to serve as the root
 directory for the remaining 'gp' commands. When the -F / --follow-git option is
 specified, the command will create the '.gitparallel' directory next to the
 current Git repository root rather than inside the current working directory.
 When the -u / --update-gitignore option is specified, an entry for the
-'.gitparallel' directory will be added to the '.gitignore' file.")
-LOCKING_init=none
-
-SYNOPSIS_i=("${SYNOPSIS_init[@]}")
-USAGE_i=("${USAGE_init[@]}")
-LOCKING_i=$LOCKING_init
+'.gitparallel' directory will be added to the '.gitignore' file."
 
 init() {
 	FOLLOW_GIT=false
@@ -280,19 +349,18 @@ init() {
 	fi
 }
 
-SUBCOMMANDS+=(list ls)
-SYNOPSIS_list=('gp {ls | list} [-p | --porcelain] [-H | --human-readable]')
-USAGE_list=(
+newSubcommand   \
+	FUNCTION=list \
+	NAMES=ls,list \
+	LOCK=shared   \
+	SYNOPSIS=\
+'gp {ls | list} [-p | --porcelain] [-H | --human-readable]' \
+	USAGE=\
 "lists the available Git-parallel repositories. When the -p / --porcelain
 option is specified or when the output of the command gets piped outside the
-terminal, a raw newline-terminated list is produced, ready to be used by the
-'gp do' command.  When the -H / --human-readable option is specified or when
-the output of the command stays in the terminal, a formatted list is produced.")
-LOCKING_list=shared
-
-SYNOPSIS_ls=("${SYNOPSIS_list[@]}")
-USAGE_ls=("${USAGE_list[@]}")
-LOCKING_ls=$LOCKING_list
+terminal, a raw newline-terminated list is produced.  When the -H /
+--human-readable option is specified or when the output of the command stays in
+the terminal, a formatted list is produced."
 
 list() {
 	if [[ -t 1 ]]; then
@@ -337,17 +405,16 @@ list() {
 	fi
 }
 
-SUBCOMMANDS+=(create cr)
-SYNOPSIS_create=('gp {cr | create} [-m | --migrate] REPO...')
-USAGE_create=(
+newSubcommand     \
+	FUNCTION=create \
+	NAMES=cr,create \
+	LOCK=exclusive  \
+	SYNOPSIS=\
+'gp {cr | create} [-m | --migrate] REPO...' \
+	USAGE=\
 'creates new Git-parallel REPOsitories. When the -m / --migrate option is
 specified, the REPOsitories are initialized with the contents of the currently
-active Git repository.')
-LOCKING_create=exclusive
-
-SYNOPSIS_cr=("${SYNOPSIS_create[@]}")
-USAGE_cr=("${USAGE_create[@]}")
-LOCKING_cr=$LOCKING_create
+active Git repository.'
 
 create() {
 	REPOS=()
@@ -393,16 +460,15 @@ create() {
 	done
 }
 
-SUBCOMMANDS+=(remove rm)
-SYNOPSIS_remove=('gp {rm | remove} [-f | --force] REPO...')
-USAGE_remove=(
+newSubcommand     \
+	FUNCTION=remove \
+	NAMES=rm,remove \
+	LOCK=exclusive  \
+	SYNOPSIS=\
+'gp {rm | remove} [-f | --force] REPO...' \
+	USAGE=\
 'removes the specified Git-parallel REPOsitories. Removing the currently active
-Git repository requires the -f / --force option.')
-LOCKING_remove=exclusive
-
-SYNOPSIS_rm=("${SYNOPSIS_remove[@]}")
-USAGE_rm=("${USAGE_remove[@]}")
-LOCKING_rm=$LOCKING_remove
+Git repository requires the -f / --force option.'
 
 remove() {
 	REPOS=()
@@ -460,20 +526,18 @@ EOF
 	done
 }
 
-SUBCOMMANDS+=(checkout co)
-SYNOPSIS_checkout=(
-'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] REPO')
-USAGE_checkout=(
-"switches to the specified Git-parallel REPOsitory. When the -c / --create option
-is specified, an equivalent of the 'gp create' command is performed beforehand.
-If there exists a '.git' directory that is not a symlink to '.gitparallel' and
-that would therefore be overriden by the switch, the -C / --clobber or the -m /
-migrate option is required.")
-LOCKING_checkout=exclusive
-
-SYNOPSIS_co=("${SYNOPSIS_checkout[@]}")
-USAGE_co=("${USAGE_checkout[@]}")
-LOCKING_co=$LOCKING_checkout
+newSubcommand       \
+	FUNCTION=checkout \
+	NAMES=co,checkout \
+	LOCK=exclusive    \
+	SYNOPSIS=\
+'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] REPO' \
+	USAGE=\
+"switches to the specified Git-parallel REPOsitory. When the -c / --create
+option is specified, an equivalent of the 'gp create' command is performed
+beforehand.  If there exists a '.git' directory that is not a symlink to
+'.gitparallel' and that would therefore be overriden by the switch, the -C /
+--clobber or the -m / migrate option is required."
 
 checkout() {
 	REPO=
@@ -547,16 +611,18 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 	fi
 }
 
-SUBCOMMANDS+=(do)
-SYNOPSIS_do=(
-'gp do [-f | --force] REPO... -- COMMAND')
-USAGE_do=(
+newSubcommand     \
+	FUNCTION=do_cmd \
+	NAME=do         \
+	LOCK=exclusive  \
+	SYNOPSIS=\
+'gp do [-f | --force] REPO... -- COMMAND' \
+	USAGE=\
 "switches to every specified Git-parallel REPOsitory and executes 'git
 COMMAND'. Should 'git COMMAND' exit with a non-zero exit code, the 'gp do'
 command will be interrupted prematurely, unless the -f / --force option is
 specified. After the command has ended, the original Git repository will be
-restored.")
-LOCKING_do=exclusive
+restored."
 
 do_cmd() {
 	REPOS=()
@@ -611,19 +677,17 @@ do_cmd() {
 	! $LOOP_BROKEN || return 6
 }
 
-SUBCOMMANDS+=(foreach fe)
-SYNOPSIS_foreach=(
-'gp {foreach | fe} [-f | --force] COMMAND')
-USAGE_foreach=(
+newSubcommand      \
+	FUNCTION=foreach \
+	NAME=fe,foreach  \
+	LOCK=exclusive   \
+	SYNOPSIS=\
+'gp {foreach | fe} [-f | --force] COMMAND' \
+	USAGE=\
 "switches to every Git-parallel REPOsitory and executes 'git COMMAND'. Should
 'git COMMAND' exit with a non-zero exit code, the 'gp foreach' command will be
 interrupted prematurely, unless the -f / --force option is specified. After the
-command has ended, the original Git repository will be restored.")
-LOCKING_foreach=exclusive
-
-SYNOPSIS_fe=("${SYNOPSIS_foreach[@]}")
-USAGE_fe=("${USAGE_foreach[@]}")
-LOCKING_fe=$LOCKING_foreach
+command has ended, the original Git repository will be restored."
 
 foreach() {
 	COMMAND=()
@@ -652,28 +716,17 @@ foreach() {
 # == The main routine ==
 
 # Collect the options.
-SUBCOMMAND=
-case "$1" in
-	ls)															;& # fall-through
-	list)				SUBCOMMAND=list			;;
-	i)															;& # fall-through
-	init)				SUBCOMMAND=init			;;
-	cr)															;& # fall-through
-	create)			SUBCOMMAND=create		;;
-	rm)															;& # fall-through
-	remove)			SUBCOMMAND=remove		;;
-	co)															;& # fall-through
-	checkout)		SUBCOMMAND=checkout	;;
-	do)					SUBCOMMAND=do_cmd		;;
-	fe)															;& # fall-through
-	foreach)		SUBCOMMAND=foreach	;;
-	help)				SUBCOMMAND=help			;;
-	-v)															;& # fall-through
-	--version)	version; exit 0			;;
-	-h)															;& # fall-through
-	--help)			usage; exit 0				;;
-	*)					usage; exit 1				;;
-esac
+if [[ -v NAME_TO_FUNCTION["$1"] ]]; then
+	SUBCOMMAND="${NAME_TO_FUNCTION["$1"]}"
+else
+	case "$1" in
+		-v)															;& # fall-through
+		--version)	version; exit 0			;;
+		-h)															;& # fall-through
+		--help)			usage; exit 0				;;
+		*)					usage; exit 1				;;
+	esac
+fi
 
 # Execute the subcommand.
-lock $1 && $SUBCOMMAND "${@:2}"
+lock $SUBCOMMAND && $SUBCOMMAND "${@:2}"
