@@ -1,7 +1,5 @@
 # Git-parallel
 
-[![Circle CI](https://circleci.com/gh/Witiko/git-parallel.png?style=shield&circle-token=b1000513cfe07378bb105c75e22a28be3a0189c9)](https://circleci.com/gh/Witiko/git-parallel)
-
 Git-parallel, also known as `gp`, is a shell script that makes it possible to
 create and switch between several Git repositories inside a single directory.
 The Git repositories are stored inside a `.gitparallel` directory with `.git`
