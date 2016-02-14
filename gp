@@ -45,7 +45,7 @@ error() { info "${@}"; }
 errcat() { infocat; }
 
 # Register a new subcommand.
-GP_EXECUTABLE="${0##*/}"
+[[ -v GP_EXECUTABLE ]] || GP_EXECUTABLE="${0##*/}"
 declare -A NAME_TO_FUNCTION LOCKS SYNOPSES USAGES
 declare -a SUBCOMMANDS
 newSubcommand() {
@@ -160,8 +160,9 @@ EOF
 }
 
 # Print the version information.
+VERSION=1.3.2
 version() {
-	info 'Git-parallel version 1.3.1'
+	info 'Git-parallel version %s' "$VERSION"
 	info 'Copyright © 2016 Vít Novotný'
 	infocat <<-'EOF'
 		License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.

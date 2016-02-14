@@ -17,20 +17,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ################################################################################
-#
-# This script adds bash command completion support for Git-parallel. To perform
-# a user installation, execute
-#
-# 	echo ". 'path/to/gp.bash-completion'" >> ~/.bashrc
-#
-# To perform a system-wide installation, copy this file into the
-#
-# 	/etc/bash_completion.d/
-#
-# directory.
-#
-################################################################################
 
+# `git parallel` and `git-parallel` autocompletion.
+_git_parallel() {
+	COMP_CWORD=$(($COMP_CWORD-1))
+	COMP_WORDS=(gp "${COMP_WORDS[@]:2}")
+	_gp
+}
+
+# `gp` autocompletion. 
 _gp() {
 	local OPTS=()
 	local IFS=$' \t\n'
@@ -104,3 +99,4 @@ _gp() {
 }
 
 complete -F _gp gp
+complete -F _git_parallel git-parallel

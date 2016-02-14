@@ -14,6 +14,23 @@ being a symbolic link pointing to `.gitparallel/active-repo`.
 
 [GNU Coreutils]: http://www.gnu.org/software/coreutils/coreutils.html
 
+## Installation
+
+ 1. For barebones functionality, it is sufficient to place the file [`gp`](gp)
+    into one of the directories in your `PATH` environment variable.
+ 2. To make Git-parallel accessible as a Git subcommand `git parallel`, place
+    the file [`git-parallel`](git-parallel) into one of the directories in your
+    `PATH` variable as well.
+ 3. To enable Bash command completion for Git-parallel, the
+    [`gp.bash-completion`](gp.bash-completion) script needs to be sourced, when
+    bash starts. This can be done as a system level by moving the script into the
+    `/etc/bash-completion.d/` directory, or on a per-user basis by including a
+    line such as
+
+        source path/to/gp.bash-completion
+
+    in the `.bashrc` configuration file located in the user's home directory.
+
 ## How does `gp` relate to Git submodules?
 
 They are unrelated:
