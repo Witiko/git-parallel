@@ -33,22 +33,33 @@ _gp() {
 	if [[ $COMP_CWORD -le 1 ]]; then
 		# Perform completion for the base command.
 		OPTS=(help --version -v --help -h)
-		if [[ -d .gitparallel ]]; then
-			OPTS+=(co checkout cr create do ls list rm remove fe foreach)
+		if gp list &>/dev/null; then
+			OPTS+=(co checkout cr create do ls list rename rm remove fe foreach)
 		else
-			OPTS+=(i init)
+			OPTS+=(i init upgrade)
 		fi
 	else
-		local REPOS=" `gp list 2>/dev/null` "
+		local REPOS="`gp list 2>/dev/null`"
 		# Perform completion for subcommands.
 		case "${COMP_WORDS[1]}" in
 			co) ;& checkout)
-				OPTS=(-c --create -m --migrate -C --clobber)
 				# Suggest repository names, if no repository has yet been specified.
 				local REPO_SPECIFIED=false
+				local MIGRATE=false
+				local CREATE=false
+				local CLOBBER=false
 				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if grep -qF " ${COMP_WORDS[$I]} " <<<"$REPOS"; then
-						local REPO_SPECIFIED=true
+					if ! $MIGRATE && [[ "${COMP_WORDS[$I]}" =~ ^-m|--migrate$ ]]; then
+						MIGRATE=true
+					fi
+					if ! $CREATE && [[ "${COMP_WORDS[$I]}" =~ ^-c|--create$ ]]; then
+						CREATE=true
+					fi
+					if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
+						CLOBBER=true
+					fi
+					if grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
+						REPO_SPECIFIED=true
 						break
 					fi
 				done
@@ -57,23 +68,49 @@ _gp() {
 				fi
 				;;
 			rm) ;& remove)
-				OPTS=(-f --force $REPOS)
+				local FORCE=false
+				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
+						FORCE=true
+						break
+					fi
+				done
+				OPTS=($REPOS)
+				! $FORCE && OPTS+=(-f --force)
 				;;
 			cr) ;& create)
-				OPTS=(-m --migrate)
+				local MIGRATE=false
+				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if [[ "${COMP_WORDS[$I]}" =~ ^-m|--migrate$ ]]; then
+						MIGRATE=true
+						break
+					fi
+				done
+				! $MIGRATE && OPTS=(-m --migrate)
 				;;
 			do)
 				# Suggest the -f / --force option and repository names, if the user has
 				# not yet typed --.
 				local TYPING_COMMAND=false
+				local REPO_SPECIFIED=false
+				local FORCE=false
 				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
+						FORCE=true
+					fi
+					if ! $REPO_SPECIFIED &&
+					grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
+						REPO_SPECIFIED=true
+					fi
 					if [[ "${COMP_WORDS[$I]}" = -- ]]; then
 						TYPING_COMMAND=true
 						break
 					fi
 				done
 				if ! $TYPING_COMMAND; then
-					OPTS=(-f --force $REPOS)
+					OPTS=($REPOS)
+					$REPO_SPECIFIED && OPTS+=(--)
+					! $FORCE && OPTS+=(-f --force)
 				fi
 				;;
 			fe) ;& foreach)
@@ -84,18 +121,57 @@ _gp() {
 				fi
 				;;
 			i) ;& init)
-				OPTS=(-F --follow-git -u --update-gitignore)
+				local FOLLOW_GIT=false
+				local UPDATE_GITIGNORE=false
+				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if ! $FOLLOW_GIT &&
+					[[ "${COMP_WORDS[$I]}" =~ ^-F|--follow-git$ ]]; then
+						FOLLOW_GIT=true
+					fi
+					if ! $UPDATE_GITIGNORE &&
+					[[ "${COMP_WORDS[$I]}" =~ ^-u|--update-gitignore$ ]]; then
+						UPDATE_GITIGNORE=true
+					fi
+				done
+				! $FOLLOW_GIT && OPTS+=(-F --follow-git)
+				! $UPDATE_GITIGNORE && OPTS+=(-u --update-gitignore)
 				;;
 			ls) ;& list)
-				OPTS=(-p --porcelain -H --human-readable)
+				local PORCELAIN=false
+				local HUMAN_READABLE=false
+				local ACTIVE=false
+				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if ! $PORCELAIN &&
+					[[ "${COMP_WORDS[$I]}" =~ ^-p|--porcelain$ ]]; then
+						PORCELAIN=true
+						break
+					fi
+					if ! $HUMAN_READABLE &&
+					[[ "${COMP_WORDS[$I]}" =~ ^-H|--human-readable$ ]]; then
+						HUMAN_READABLE=true
+						break
+					fi
+					if ! $ACTIVE &&
+					[[ "${COMP_WORDS[$I]}" =~ ^-a|--active$ ]]; then
+						ACTIVE=true
+						break
+					fi
+				done
+				if ! $PORCELAIN && ! $HUMAN_READABLE && ! $ACTIVE; then
+					OPTS=(-a --active -p --porcelain -H --human-readable)
+				fi
 				;;
 			help)
-				OPTS=(co checkout cr create do i init ls list fe foreach)
+				OPTS=(
+					i init co checkout cr create do ls list rename rm remove fe foreach
+					upgrade
+				)
 				;;
 		esac
 	fi
 
-   COMPREPLY=($(compgen -W "${OPTS[*]}" -- "${COMP_WORDS[$COMP_CWORD]}"))
+	COMPREPLY=($(compgen -W "${OPTS[*]}" -- "${COMP_WORDS[$COMP_CWORD]}"))
+	return 0
 }
 
 complete -F _gp gp

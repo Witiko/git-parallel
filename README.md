@@ -2,16 +2,18 @@
 
 Git-parallel, also known as `gp`, is a shell script that makes it possible to
 create and switch between several Git repositories inside a single directory.
-The Git repositories are stored inside a `.gitparallel` directory with `.git`
-being a symbolic link pointing to `.gitparallel/active-repo`.
+The Git repositories are stored inside a `.gitparallel` directory with
+`.gitparallel/active-repo` being a symbolic link pointing to `.git`.
 
 ## Requirements
 
- * [Bash 4+](https://www.gnu.org/software/bash/)
+ * [Bash 4+][Bash]
+ * [GIT][]
  * `flock` from [`util-linux`](/karelzak/util-linux) (optional)
- * `fmt` from [GNU Coreutils][] (optional)
- * `readlink` from [GNU Coreutils][]
+ * `fmt` and `readlink` from [GNU Coreutils][] (optional)
 
+[Bash]: https://www.gnu.org/software/bash/
+[GIT]: https://git-scm.com/
 [GNU Coreutils]: http://www.gnu.org/software/coreutils/coreutils.html
 
 ## Installation
@@ -96,7 +98,8 @@ basic usage of `gp`:
 	# Creates two empty gp repositories.
 	gp init
 	gp create repoA repoB
-	gp foreach init
+	gp do repoA -- add fileA fileB fileC
+	gp do repoB -- add fileC fileD fileE
 	gp foreach commit -m 'initial commit.'
 
 	# Migrates an existing Git repository to gp.

@@ -82,10 +82,6 @@ newSubcommand() {
 		error "%s: An unknown lock type '%s' specified." $FUNCTION "$LOCK"
 	fi
 	if ! $HIDDEN; then
-		if [[ -z "$SYNOPSIS" ]]; then
-			error '%s: No synopsis specified.' $FUNCTION
-			return 4
-		fi
 		if [[ -z "$USAGE" ]]; then
 			error '%s: No usage specified.' $FUNCTION
 			return 5
@@ -160,7 +156,7 @@ EOF
 }
 
 # Print the version information.
-VERSION=1.3.2
+VERSION=2.0.0
 version() {
 	info 'Git-parallel version %s' "$VERSION"
 	info 'Copyright © 2016 Vít Novotný'
@@ -222,7 +218,35 @@ lock() {
 	fi
 }
 
-# Retrieve the nearest directory containing the directory $1.
+# Determine, if a Git-parallel repository is compatible with the current
+# version of the program, or if it has to be `gp upgrade`d.
+VERSIONFILE=$GP_DIR/.version
+isCompatible() {
+	if [[ -e $VERSIONFILE ]]; then
+		# The repository is compatible, if 2.0.0 <= version < 3.0.0.
+		if [[ "`cat $VERSIONFILE`" =~ ^2\. ]]; then
+			return 0
+		else
+			errcat <<-EOF
+The version of the Git-parallel repository in directory '$PWD' ($REPOVERSION)
+is incompatible with the current version of the program ($VERSION). In order to
+work with the repository, update the program.
+			EOF
+			return 1
+		fi
+	else
+		errcat <<-EOF
+The version of the Git-parallel repository in directory '$PWD' ($REPOVERSION)
+is incompatible with the current version of the program ($VERSION). Run
+'$GP_EXECUTABLE upgrade' to bring the repository up to date.
+		EOF
+		return 2
+	fi
+}
+
+# Retrieve the nearest directory containing the directory $1. If $1 is
+# `$GP_DIR`, check whether the retrieved directory is compatible with the
+# current version of the program.
 findRoot() {
 	local PTH=.
 	(while [[ $PWD != / && ! -d "$1" ]]; do
@@ -230,59 +254,93 @@ findRoot() {
 		cd ..
 	done
 	if [[ -d "$1" ]]; then
-		printf '%s\n' $PTH
+		if [[ "$1" != $GP_DIR || "$2" = --ignore-compatibility ]] ||
+		isCompatible "$PTH"; then
+			printf '%s\n' $PTH
+		else
+			return 1
+		fi
 	else
-		return 1
+		return 2
 	fi)
 }
 
 # Retrieve the nearest directory containing the directory $1 and change the
 # working directory to it.
 jumpToRoot() {
-	local ROOT
-	if ROOT=`findRoot "$1"`; then
-		cd $ROOT
-	else
-		error "No directory '%s' was found in '%s' or its parents." "$1" "$PWD"
-		return 1
-	fi
-}
-
-# Retrieve the currently active repository.
-activeRepository() {
-	local LINK="`readlink .git`" &&
-	[[ "$LINK" =~ ^$GP_DIR_RE/ ]] && printf '%s\n' ${LINK#$GP_DIR/}
-}
-
-# Remember or restore the current repository status.
-stash() {
-	local STASH=$GP_DIR/.stashed
-	case "$1" in
-		remember)
-			if [[ -e $STASH ]]; then
-				error "There already exists a %s stashed at '%s'." \
-					`if [[ -d $STASH ]]; then
-						printf 'Git repository'
-					else
-						printf 'symlink to a Git-parallel repository'
-					fi` "$PWD"/$STASH
-				return 1
-			fi
-			if [[ -e .git ]]; then
-				mv .git $STASH
-			fi	;;
-		restore)
-			rm .git &&
-			if [[ -e $STASH ]]; then
-				mv $STASH .git &&
-				info "Restored the original Git repository in '%s'." "$PWD"
-			else
-				info "Removed the '.git' symlink from '%s'." "$PWD"
-			fi	;;
-		*)
-			error "Unknown stash subcommand '%s'." "$1"
-			return 2
+	local ROOT RETVAL
+	ROOT=`findRoot "$1" "$2"`
+	RETVAL=$?
+	case "$RETVAL" in
+		0)	cd $ROOT	;;
+		1)	return 1	;;
+		2)	error "No directory '%s' was found in '%s' or its parents." "$1" "$PWD"
+				return 2	;;
 	esac
+}
+
+# Stash the current state of the working directory.
+STASH=$GP_DIR/.stash
+stash() {
+	# Guard against bad input.
+	if [[ -e $STASH ]]; then
+		if [[ -f $STASH ]]; then
+			errcat <<-EOF
+The Git-parallel repository '`cat $STASH`' has already been stashed.
+			EOF
+			return 1
+		else
+			errcat <<-EOF
+There already exists a Git repository stashed at '$PWD/$STASH'.
+			EOF
+			return 2
+		fi
+	fi
+
+	# Perform the main routine.
+	local ACTIVE
+	if ACTIVE=`list --active`; then
+		rm $GP_DIR/$ACTIVE &&
+		mv -T .git $GP_DIR/$ACTIVE &&
+		printf '%s\n' $ACTIVE >$STASH &&
+		infocat <<-EOF
+The active Git-parallel repository '$ACTIVE' has been stashed.
+		EOF
+	else
+		if [[ -e .git ]]; then
+			mv -T .git $STASH &&
+			infocat <<-EOF
+The Git repository '$PWD/.git' has been stashed at '$PWD/$STASH'.
+			EOF
+		fi
+	fi || return 3
+}
+
+# Restore the previous state of the working directory from the stash.
+restore() {
+	local ACTIVE
+	if ACTIVE=`list --active`; then
+		rm $GP_DIR/$ACTIVE &&
+		mv -T .git $GP_DIR/$ACTIVE
+	else
+		rm -rf .git
+	fi || return 1
+	if [[ -e $STASH ]]; then
+		if [[ -f $STASH ]]; then
+			read ACTIVE <$STASH &&
+			checkName "$ACTIVE" &&
+			checkout $ACTIVE &&
+			rm $STASH &&
+			infocat <<-EOF
+Recovered the Git-parallel repository '$ACTIVE' from the stash.
+			EOF
+		else
+			mv -T $STASH .git &&
+			infocat <<-EOF
+Recovered the Git repository '$PWD/.git' from the stash.
+			EOF
+		fi
+	fi || return 2
 }
 
 # == Subcommands ==
@@ -311,6 +369,95 @@ help() {
 	# Perform the main routine.
 	info '\n  %s\n' "${SYNOPSES[$SUBCOMMAND]}"
 	info '%s\n' "${USAGES[$SUBCOMMAND]}"
+}
+
+newSubcommand      \
+	FUNCTION=upgrade \
+	NAMES=upgrade    \
+	LOCK=exclusive   \
+	SYNOPSIS=none    \
+	USAGE=\
+"upgrades a '$GP_DIR' directory created with an earlier version of
+Git-parallel, so that it can be used with the current version of Git-parallel.
+You are advised to back up your '$GP_DIR' directory before executing this
+command." \
+	HIDDEN
+
+upgrade() {
+	# Check for bad input.
+	if isCompatible 2>/dev/null; then
+		infocat <<-EOF
+The Git-parallel directory '$PWD/$GP_DIR' is already up to date.
+		EOF
+		return 0
+	else
+		if [[ $? = 1 ]]; then
+			infocat <<-EOF
+The Git-parallel directory '$PWD/$GP_DIR' was created with a newer version of
+Git-parallel. To work with the directory, update the program.
+			EOF
+			return 1
+		fi
+	fi
+
+	# Perform the main routine.
+	jumpToRoot $GP_DIR --ignore-compatibility || return 2
+
+	# For versions <2.0.0, swap symlinks and directories.
+	upgrade_sub_2.0.0 || return 3
+
+	# Upgrade the version file.
+	printf '%s\n' "$VERSION" >"$VERSIONFILE" &&
+	infocat <<-EOF
+Upgraded the Git-parallel repository in directory '$PWD' to version
+'$VERSION'.
+	EOF
+}
+
+upgrade_sub_2.0.0() {
+	# Check for bad input.
+	if ! hash readlink 2>&-; then
+		errorcat <<-'EOF'
+The 'readlink' program is required to upgrade the Git-parallel repository.
+		EOF
+		return 3
+	fi
+	if [[ -L .git && -e .git ]]; then
+		local LINK
+		if ! LINK="`readlink .git`" || [[ ! $LINK =~ ^$GP_DIR_RE/.* ]]; then
+			errcat <<-EOF
+Unable to swap the polarity of the symlink '.git -> $LINK' in '$PWD', since it
+points outside the '$GP_DIR' directory.
+			EOF
+			return 3
+		fi
+	fi
+
+	# Perform the main routine.
+	## Initialize empty Git-parallel repositories.
+	(shopt -s nullglob && cd $GP_DIR &&
+	for REPO in */; do
+		REPO="${REPO%/}"
+		if checkName "$REPO" 2>/dev/null && [[ `ls $REPO | wc -l` = 0 ]]; then
+			rmdir $REPO &&
+			git init &&
+			mv -T .git $REPO &&
+			infocat <<-EOF
+Initialized the empty Git-parallel repository '$REPO' in '$OLDPWD'.
+			EOF
+		fi
+	done) || return 2
+
+	## Swap the polarity of the active repository symlink.
+	if [[ -L .git && -e .git ]]; then
+		LINK="`readlink .git`" &&
+		rm .git &&
+		mv -T "$LINK" .git &&
+		(cd "${LINK%/*}" &&
+		ln -s ../.git "${LINK##*/}" &&
+		info "Turned the symlink '.git -> %s' in '$OLDPWD' into '.git <- %s'." \
+			"$LINK" "$LINK") || return 4
+	fi
 }
 
 newSubcommand   \
@@ -354,9 +501,10 @@ init() {
 	fi
 
 	# Perform the main routine.
-	mkdir $GP_DIR-incomplete && touch $GP_DIR-incomplete/.lock &&
-	mv $GP_DIR-incomplete $GP_DIR &&
-	info "Created a '%s' directory in '%s'." $GP_DIR "$PWD" &&
+	mkdir $GP_DIR && trap 'rm -rf $GP_DIR' EXIT &&
+	printf '%s\n' "$VERSION" >$GP_DIR/.version &&
+	trap - EXIT &&
+	info "Created a '$GP_DIR' directory in '%s'." "$PWD" &&
 	if $UPDATE_GITIGNORE; then
 		if [[ ! -e .gitignore ]]; then
 			printf '%s\n' $GP_DIR >.gitignore
@@ -383,7 +531,8 @@ newSubcommand   \
 option is specified or when the output of the command gets piped outside the
 terminal, a raw newline-terminated list is produced. When the -H /
 --human-readable option is specified or when the output of the command stays in
-the terminal, a formatted list is produced."
+the terminal, a formatted list is produced. When the -a / --active option is
+specified, only the active directory is listed."
 
 list() {
 	local PORCELAIN
@@ -392,17 +541,20 @@ list() {
 	else
 		PORCELAIN=true
 	fi
+	local ONLY_ACTIVE=false
 
 	# Collect the options.
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			-p)																;& # fall-through
-			--porcelain)			PORCELAIN=true	;;
-			-H)																;& # fall-through
-			--human-readable)	PORCELAIN=false	;;
-			--)																;; # ignore
+			-p)																	;& # fall-through
+			--porcelain)			PORCELAIN=true		;;
+			-H)																	;& # fall-through
+			--human-readable)	PORCELAIN=false		;;
+			-a)																	;& # fall-through
+			--active)					ONLY_ACTIVE=true	;;
+			--)																	;; # ignore
 			*)								error "An unexpected argument '%s'." "$1"
-												return 1				;;
+												return 1					;;
 		esac
 		shift
 	done
@@ -411,22 +563,33 @@ list() {
 	jumpToRoot $GP_DIR || return 1
 
 	# Perform the main routine.
-	if [[ -d $GP_DIR ]]; then
-		local ACTIVE=`activeRepository`
-		(shopt -s nullglob
-		local REPO; for REPO in $GP_DIR/*/; do
-			REPO="${REPO##$GP_DIR/}"
-			REPO="${REPO%%/}"
-			checkName "$REPO" 2>/dev/null || continue
-			printf '%s%s%s\n' "`if ! $PORCELAIN; then
-				if [[ $REPO = $ACTIVE ]]; then
-					printf '* \033[32m'
+	(shopt -s nullglob && for REPO in $GP_DIR/*/; do
+		REPO="${REPO%/}"
+		local NAME="${REPO#$GP_DIR/}"
+		checkName "$NAME" 2>/dev/null || continue
+		if [[ -L $REPO && -d $REPO ]]; then
+			if $ONLY_ACTIVE; then
+				printf '%s\n' $NAME
+				exit 0
+			else
+				! $PORCELAIN && printf '* \033[32m'
+				printf '%s' $NAME
+				if ! $PORCELAIN; then
+					printf '\033[m -> %s/.git\n' "$PWD"
 				else
-					printf '  '
+					printf '\n'
 				fi
-			fi`" $REPO "`$PORCELAIN || printf '\033[m'`"
-		done)
-	fi
+			fi
+		else
+			if ! $ONLY_ACTIVE; then
+				! $PORCELAIN && printf '  '
+				printf '%s\n' $NAME
+			fi
+		fi
+	done
+	if $ONLY_ACTIVE; then
+		exit 1
+	fi) || return 1
 }
 
 newSubcommand     \
@@ -436,9 +599,10 @@ newSubcommand     \
 	SYNOPSIS=\
 '[-m | --migrate] REPO...' \
 	USAGE=\
-'creates new Git-parallel REPOsitories. When the -m / --migrate option is
+"creates new Git-parallel REPOsitories. When the -m / --migrate option is
 specified, the REPOsitories are initialized with the contents of the currently
-active Git repository.'
+active Git repository. Otherwise, the REPOsitories are initialized by running
+'git init'."
 
 create() {
 	local REPOS=()
@@ -477,10 +641,20 @@ create() {
 			cp -Ta "$GIT_ROOT"/.git $GP_DIR/$REPO &&
 			info "Migrated '%s/.git' to '%s/%s'." "$GIT_ROOT" "$PWD" $GP_DIR/$REPO
 		else
-			mkdir $GP_DIR/$REPO &&
-			info "Created an empty Git-parallel repository '%s' in '%s'." \
-				$REPO "$PWD"
-		fi
+			local FAILED=true
+			stash &&
+			(cd $GP_DIR
+			git init &&
+			mv -T .git $REPO) &&
+			FAILED=false
+
+			if ! restore || $FAILED; then
+				return 6
+			else
+				info "Created an empty Git-parallel repository '%s' in '%s'." \
+					$REPO "$PWD"
+			fi
+		fi || return 6
 	done
 }
 
@@ -525,7 +699,7 @@ remove() {
 	done
 
 	# Guard against dubious input.
-	local ACTIVE=`activeRepository`
+	local ACTIVE="`list --active 2>/dev/null`"
 	for REPO in ${REPOS[@]}; do
 		if [[ $REPO = $ACTIVE ]] && ! $FORCE; then
 			errcat <<-EOF
@@ -539,12 +713,13 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -f
 
 	# Perform the main routine.
 	for REPO in ${REPOS[@]}; do
-		rm -rf $GP_DIR/$REPO &&
 		if [[ $REPO = $ACTIVE ]]; then
-			rm .git
+			rm $GP_DIR/$REPO &&
+			rm -rf .git &&
 			info "Removed the active Git-parallel repository '%s' from '%s'." \
 				$REPO "$PWD"
 		else
+			rm -rf $GP_DIR/$REPO &&
 			info "Removed the Git-parallel repository '%s' from '%s'." $REPO "$PWD"
 		fi
 	done
@@ -602,7 +777,8 @@ The Git-parallel repository '$REPO' does not exist in '$PWD'. Specify the -c /
 	fi
 
 	# Guard against dubious input.
-	if { [[ -d .git ]] && ! activeRepository >/dev/null; } &&
+	local ACTIVE
+	if { [[ -d .git ]] && ! ACTIVE=`list --active 2>/dev/null`; } &&
 	! { $CLOBBER || { $CREATE && $MIGRATE; }; }; then
 		errcat <<-'EOF'
 There exists an active Git repository that is not a symlink to a Git-parallel
@@ -614,18 +790,25 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 	fi
 
 	# Guard against harmless input.
-	if ! $CREATE && [[ $REPO = `activeRepository` ]]; then
+	if ! $CREATE && [[ $REPO = $ACTIVE ]]; then
 		info "The Git-parallel repository '%s' is already active." $REPO
 		return 0
 	fi
 
 	# Perform the main routine.
-	export OLDPWD && # Jump back to the original PWD for the `gp create` call.
 	if $CREATE; then
+		export OLDPWD
 		(cd "$OLDPWD" &&
-		create `$MIGRATE && echo --migrate` -- $REPO)
-	fi &&
-	rm -rf .git && ln -s $GP_DIR/$REPO .git &&
+		create `$MIGRATE && printf '%s\n' --migrate` $REPO) || return 7
+	fi
+	if ! [[ -z "$ACTIVE" ]]; then
+		rm $GP_DIR/$ACTIVE &&
+		mv -T .git $GP_DIR/$ACTIVE || return 8
+	else
+		rm -rf .git || return 9
+	fi
+	mv -T $GP_DIR/$REPO .git &&
+	(cd $GP_DIR && ln -s ../.git $REPO) || return 10
 
 	# Print additional information.
 	if $CREATE; then
@@ -687,18 +870,26 @@ do_cmd() {
 	done
 
 	# Perform the main routine.
-	local LOOP_BROKEN=false
-	stash remember 1>&2 && {
+	local FAILED=false
+	stash &&
 	for REPO in ${REPOS[@]}; do
-		! checkout -- $REPO 1>&2 && ! $FORCE && break
+		if ! checkout $REPO && ! $FORCE; then
+			FAILED=true
+			break
+		fi
 		if (cd "$PREVIOUS_PWD" && git "${COMMAND[@]}"); then :; else
 			local COMMAND_STRING="${COMMAND[@]}"
 			error "The command 'git %s' failed." "$COMMAND_STRING"
-			! $FORCE && LOOP_BROKEN=true && break
+			if ! $FORCE; then
+				FAILED=true
+				break
+			fi
 		fi
-	done
-	stash restore 1>&2; }
-	! $LOOP_BROKEN || return 6
+	done || FAILED=true
+	
+	if ! restore || $FAILED; then
+		return 6
+	fi
 }
 
 newSubcommand      \

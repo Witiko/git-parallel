@@ -45,13 +45,14 @@ init_update_gitignore() {
 	[[ -e .gitignore ]] && return 1
 	./gp init --update-gitignore || return 2
 	[[ -e .gitignore ]] || return 3
-	grep -q '^\.gitparallel' <.gitignore || return 4
+	[[ `grep '^\.gitparallel' <.gitignore | wc -l` = 1 ]] || return 4
 	mkdir -p foo/bar foo/.git || return 5
 	cd foo/bar || return 6
 	[[ -e ../.gitignore ]] && return 7
+	printf '.gitparallel\n' >../.gitignore
 	../../gp init --follow-git -u || return 8
 	[[ -e ../.gitignore ]] || return 9
-	grep -q '^\.gitparallel' <../.gitignore || return 10
+	[[ `grep '^\.gitparallel' <../.gitignore | wc -l` = 1 ]] || return 4
 	return 0
 }
 
@@ -151,14 +152,14 @@ create_checkNames() {
 	./gp create a b c '' && return 1
 	./gp create a b/c && return 2
 	./gp create 'a
-	             b' c d && return 4
-	./gp create . b c d && return 5
-	./gp create a. b c || return 6
-	{ rm -rf .gitparallel && ./gp init; } || return 7
-	./gp create a b --bogus d && return 8
-	./gp create a b bo-gus d || return 9
-	./gp create a b 'c d' && return 10
-	./gp create a b 'c	d' && return 11
+	             b' c d && return 3
+	./gp create . b c d && return 4
+	./gp create a. b c || return 5
+	{ rm -rf .gitparallel && ./gp init; } || return 6
+	./gp create a b --bogus d && return 7
+	./gp create a b bo-gus d || return 8
+	./gp create a b 'c d' && return 9
+	./gp create a b 'c	d' && return 10
 	return 0
 }
 
@@ -226,12 +227,18 @@ TESTS+=(remove_force)
 remove_force() {
 	./gp init
 	./gp create a b || return 1
-	ln -s .gitparallel/a .git
-	./gp remove a && return 2
-	./gp remove -f a || return 3
-	ln -s .gitparallel/b .git
-	./gp remove b && return 4
-	./gp remove --force b || return 5
+	mv -T .gitparallel/a .git || return 2
+	cd .gitparallel || return 3
+	ln -s ../.git a || return 4
+	cd .. || return 5
+	./gp remove a && return 6
+	./gp remove -f a || return 7
+	mv -T .gitparallel/b .git || return 8
+	cd .gitparallel || return 9
+	ln -s ../.git b || return 10
+	cd .. || return 11
+	./gp remove b && return 12
+	./gp remove --force b || return 13
 	return 0
 }
 
@@ -293,11 +300,40 @@ list_porcelain() {
 	./gp list --human-readable | grep -q '^\* ' && return 3
 	./gp list -p | grep -q '^\* ' && return 4
 	./gp list --porcelain | grep -q '^ \*' && return 5
-	ln -s .gitparallel/a .git
-	./gp list -H | grep -q '^\* ' || return 6
-	./gp list --human-readable | grep -q '^\* ' || return 7
-	./gp list -p | grep -q '^\* ' && return 8
-	./gp list --porcelain | grep -q '^ \*' && return 9
+	mv -T .gitparallel/a .git || return 6
+	cd .gitparallel || return 7
+	ln -s ../.git a || return 8
+	cd .. || return 9
+	./gp list -H | grep -q '^\* ' || return 10
+	./gp list --human-readable | grep -q '^\* ' || return 11
+	./gp list -p | grep -q '^\* ' && return 12
+	./gp list --porcelain | grep -q '^ \*' && return 13
+	return 0
+}
+
+### Test the correct handline of the -a / --active options.
+TESTS+=(list_active)
+list_active() {
+	./gp init
+
+	./gp list --active && return 1
+	./gp list -a && return 2
+	[[ -z "`./gp list --active`" ]] || return 3
+	[[ -z "`./gp list -a`" ]] || return 4
+
+	./gp create a || return 5
+	[[ -z "`./gp list --active`" ]] || return 6
+	[[ -z "`./gp list -a`" ]] || return 7
+	./gp list --active && return 8
+	./gp list -a && return 9
+
+	mv -T .gitparallel/a .git || return 10
+	(cd .gitparallel && ln -s ../.git a) || return 11
+	./gp list --active || return 12
+	./gp list -a || return 13
+	[[ "`./gp list --active`" = a ]] || return 14
+	[[ "`./gp list -a`" = a ]] || return 15
+
 	return 0
 }
 
@@ -345,14 +381,16 @@ checkout_clobber() {
 	./gp create a b || return 1
 	./gp checkout a || return 2
 	./gp checkout b || return 3
-	rm .git
-	mkdir .git
-	./gp checkout a && return 4
-	./gp checkout --clobber a || return 5
-	rm .git
-	mkdir .git
-	./gp checkout b && return 6
-	./gp checkout -C b || return 7
+	rm .gitparallel/b || return 4
+	mv -T .git .gitparallel/b || return 5
+	mkdir .git || return 6
+	./gp checkout a && return 7
+	./gp checkout --clobber a || return 8
+	rm .gitparallel/a || return 9
+	mv -T .git .gitparallel/a || return 10
+	mkdir .git || return 11
+	./gp checkout b && return 12
+	./gp checkout -C b || return 13
 	return 0
 }
 
@@ -374,12 +412,13 @@ checkout_create_migrate() {
 	./gp init
 	./gp checkout a && return 1
 	./gp checkout --create a || return 2
-	rm .git
-	mkdir .git
-	./gp checkout b && return 3
-	./gp checkout --create b && return 4
-	./gp checkout --migrate b && return 5
-	./gp checkout --create --migrate b || return 6
+	rm .gitparallel/a || return 3
+	mv -T .git .gitparallel/a || return 4
+	mkdir .git || return 5
+	./gp checkout b && return 6
+	./gp checkout --create b && return 7
+	./gp checkout --migrate b && return 8
+	./gp checkout --create --migrate b || return 9
 	return 0
 }
 
@@ -434,9 +473,12 @@ checkout_migrate() {
 	../gp checkout --create -m a || return 7
 	[[ -e .gitparallel/a/foobar ]] || return 8
 	../gp checkout --create --migrate a && return 9
-	rm .git || return 10
-	mkdir .git
-	touch .git/foobar
+
+	rm .gitparallel/a || return 10
+	mv -T .git .gitparallel/a || return 11
+	mkdir .git || return 12
+	touch .git/foobar || return 13
+
 	../gp checkout --create --migrate b || return 7
 	[[ -e .gitparallel/b/foobar ]] || return 8
 	../gp checkout --create -m b && return 9
@@ -466,9 +508,11 @@ TESTS+=(do_cmd)
 do_cmd() {
 	./gp init
 	./gp create a b c || return 1
-	./gp do a b c -- status --porcelain && return 2
-	./gp do a b c -- init || return 3
-	./gp do a b c -- status --porcelain || return 4
+	./gp do a b c -- log && return 2
+	touch file
+	./gp do a b c -- add file || return 3
+	./gp do a b c -- commit -am 'initial commit' || return 3
+	./gp do a b c -- log || return 4
 	return 0
 }
 
@@ -477,10 +521,10 @@ TESTS+=(do_force)
 do_force() {
 	./gp init
 	./gp create a b c || return 1
-	./gp do a b c -- status --porcelain && return 2
-	./gp do -f a b c -- status --porcelain || return 3
-	./gp do a b c --force -- status --porcelain || return 4
-	./gp do a b c -- status --porcelain && return 5
+	./gp do a b c -- log && return 2
+	./gp do -f a b c -- log || return 3
+	./gp do a b c --force -- log || return 4
+	./gp do a b c -- log && return 5
 	return 0
 }
 
@@ -490,7 +534,7 @@ do_noinit() {
 	./gp init
 	./gp create a b c || return 1
 	rm -r .gitparallel
-	./gp do `./gp list` -- init && return 2
+	./gp do `./gp list` -- status --porcelain && return 2
 	return 0
 }
 
@@ -499,11 +543,10 @@ TESTS+=(do_pwd)
 do_pwd() {
 	./gp init
 	./gp checkout --create master || return 1
-	./gp do master -- init || return 2
 	mkdir aaa
 	cd aaa
 	touch bbb
-	../gp do master -- add bbb || return 3
+	../gp do master -- add bbb || return 2
 	return 0
 }
 
@@ -512,14 +555,13 @@ TESTS+=(do_restore)
 do_restore() {
 	./gp init
 	./gp create a b c || return 1
-	./gp do `./gp list` -- init || return 2
-	./gp do `./gp list` -- status --porcelain || return 3
-	[[ -e .git ]] && return 4
+	./gp do `./gp list` -- status --porcelain || return 2
+	[[ -e .git ]] && return 3
 	mkdir .git
 	touch .git/foobar
+	./gp do `./gp list` -- status --porcelain || return 4
 	./gp do `./gp list` -- status --porcelain || return 5
-	./gp do `./gp list` -- status --porcelain || return 6
-	[[ -e .git/foobar ]] || return 7
+	[[ -e .git/foobar ]] || return 6
 	return 0
 }
 
@@ -528,8 +570,7 @@ TESTS+=(do_eval)
 do_eval() {
 	./gp init
 	./gp create a b c || return 1
-	./gp do `./gp list` -- init || return 2
-	./gp do `./gp list` -- status '(' || return 3
+	./gp do `./gp list` -- status --porcelain '(' || return 2
 	return 0
 }
 
@@ -539,9 +580,11 @@ TESTS+=(foreach)
 foreach() {
 	./gp init
 	./gp create a b c || return 1
-	./gp foreach status --porcelain && return 2
-	./gp foreach init || return 3
-	./gp foreach status --porcelain || return 4
+	./gp foreach log && return 2
+	touch file
+	./gp foreach add file || return 3
+	./gp foreach commit -am 'initial commit' || return 3
+	./gp foreach log || return 4
 	return 0
 }
 
@@ -550,9 +593,11 @@ TESTS+=(foreach_alias)
 foreach_alias() {
 	./gp init
 	./gp create a b c || return 1
-	./gp fe status --porcelain && return 2
-	./gp fe init || return 3
-	./gp fe status --porcelain || return 4
+	./gp fe log && return 2
+	touch file
+	./gp fe add file || return 3
+	./gp fe commit -am 'initial commit' || return 3
+	./gp fe log || return 4
 	return 0
 }
 
@@ -561,10 +606,10 @@ TESTS+=(foreach_force)
 foreach_force() {
 	./gp init
 	./gp create a b c || return 1
-	./gp foreach status --porcelain && return 2
-	./gp foreach -f status --porcelain || return 3
-	./gp foreach --force status --porcelain || return 4
-	./gp foreach status --porcelain && return 5
+	./gp foreach log && return 2
+	./gp foreach -f log || return 3
+	./gp foreach --force log || return 4
+	./gp foreach log && return 5
 	return 0
 }
 
@@ -574,7 +619,7 @@ foreach_noinit() {
 	./gp init
 	./gp create a b c || return 1
 	rm -r .gitparallel
-	./gp foreach init && return 2
+	./gp foreach status --porcelain && return 2
 	return 0
 }
 
@@ -583,11 +628,10 @@ TESTS+=(foreach_pwd)
 foreach_pwd() {
 	./gp init
 	./gp checkout --create master || return 1
-	./gp foreach init || return 2
 	mkdir aaa
 	cd aaa
 	touch bbb
-	../gp foreach add bbb || return 3
+	../gp foreach add bbb || return 2
 	return 0
 }
 
@@ -596,14 +640,13 @@ TESTS+=(foreach_restore)
 foreach_restore() {
 	./gp init
 	./gp create a b c || return 1
-	./gp foreach init || return 2
-	./gp foreach status --porcelain || return 3
-	[[ -e .git ]] && return 4
+	./gp foreach status --porcelain || return 2
+	[[ -e .git ]] && return 3
 	mkdir .git
 	touch .git/foobar
+	./gp foreach status --porcelain || return 4
 	./gp foreach status --porcelain || return 5
-	./gp foreach status --porcelain || return 6
-	[[ -e .git/foobar ]] || return 7
+	[[ -e .git/foobar ]] || return 6
 	return 0
 }
 
@@ -612,12 +655,51 @@ TESTS+=(foreach_eval)
 foreach_eval() {
 	./gp init
 	./gp create a b c || return 1
-	./gp foreach init || return 2
-	./gp foreach status '(' || return 3
+	./gp foreach status --porcelain '(' || return 2
+	return 0
+}
+
+## == Tests for the `upgrade` subcommand ==
+### Test the output, when an upgrade from version <2.0.0 is needed.
+TESTS+=(upgrade_sub_v2_0_0)
+upgrade_sub_v2_0_0() {
+	mkdir .gitparallel
+	mkdir .gitparallel/{a,b,c}
+	ln -s .gitparallel/a .git
+	./gp upgrade || return 1
+	./gp foreach status --porcelain || return 6
+	[[ `gp list --active` = a ]] || return 7
+	return 0
+}
+
+### Test the output, when an upgrade from version 2.0.0 is needed.
+TESTS+=(upgrade_eq_v2_0_0)
+upgrade_eq_v2_0_0() {
+	mkdir .gitparallel
+	mkdir .gitparallel/{a,b,c}
+	ln -s .gitparallel/a .git
+	printf '2.0.0\n' >.gitparallel/.version
+	./gp upgrade || return 1
+	./gp foreach status --porcelain && return 6
+	[[ `gp list --active` = a ]] && return 7
+	return 0
+}
+
+### Test the output, when an upgrade from version 3.0.0 is needed.
+TESTS+=(upgrade_sup_v2_0_0)
+upgrade_sup_v2_0_0() {
+	mkdir .gitparallel
+	mkdir .gitparallel/{a,b,c}
+	ln -s .gitparallel/a .git
+	printf '3.0.0\n' >.gitparallel/.version
+	./gp upgrade && return 1
+	./gp foreach status --porcelain && return 6
+	[[ `gp list --active` = a ]] && return 7
 	return 0
 }
 
 # == The main routine ==
+trap 'rm -rf "$LOG" "$DIR"' EXIT
 LOG="`mktemp`" &&
 for TEST in "${TESTS[@]}"; do
 	printf 'Running \033[1m%s\033[m ...' "$TEST"
@@ -627,10 +709,8 @@ for TEST in "${TESTS[@]}"; do
 	else
 		printf '\t\033[1m\033[31m[FAILED: %d]\033[m\n' "$?"
 		cat "$LOG"
-		rm -rf "$DIR" "$LOG"
 		exit 1
 	fi
 	rm -rf "$DIR"; }
 done
-rm -rf "$LOG"
 printf '\033[1m\033[32mAll passed!\033[m\n'
