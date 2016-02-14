@@ -45,6 +45,7 @@ error() { info "${@}"; }
 errcat() { infocat; }
 
 # Register a new subcommand.
+GP_EXECUTABLE="${0##*/}"
 declare -A NAME_TO_FUNCTION LOCKS SYNOPSES USAGES
 declare -a SUBCOMMANDS
 newSubcommand() {
@@ -110,11 +111,18 @@ newSubcommand() {
 		NAME_TO_FUNCTION["$NAME"]=$FUNCTION
 	done
 	LOCKS[$FUNCTION]=$LOCK
-	if ! $HIDDEN; then
-		SYNOPSES[$FUNCTION]="$SYNOPSIS"
+	SYNOPSES[$FUNCTION]="$GP_EXECUTABLE $(
+		if [[ ${#NAMES[@]} = 1 ]]; then
+			printf '%s\n' "${NAMES[0]}"
+		else
+			local IFS='|'
+			printf '{%s}\n' "${NAMES[*]}" | sed 's/|/ | /g'
+		fi
+	)$([[ $SYNOPSIS != none ]] && printf ' %s\n' "$SYNOPSIS")"
+	if [[ ! -z "$USAGE" ]]; then
 		USAGES[$FUNCTION]="$USAGE"
-		SUBCOMMANDS+=($FUNCTION)
 	fi
+	$HIDDEN || SUBCOMMANDS+=($FUNCTION)
 }
 
 # Print the usage information.
@@ -130,7 +138,7 @@ Usage:
 
 To see more information about any individual COMMAND, execute
 
-  gp help COMMAND
+  $GP_EXECUTABLE help COMMAND
 
 EOF
 	if { ! hash flock || ! hash fmt; } 2>&-; then
@@ -289,14 +297,17 @@ help() {
 	[[ $# = 0 ]] && usage && return 0
 
 	# Guard against bad input.
-	if [[ ! -v NAME_TO_FUNCTION["$1"] ||
-	! " ${SUBCOMMANDS[@]} " =~ " ${NAME_TO_FUNCTION["$1"]} " ]]; then
-		error "There is no command '%s'." "$1"
+	if [[ ! -v NAME_TO_FUNCTION["$1"] ]]; then
+		error "There is no subcommand '%s'." "$1"
 		return 1
+	fi
+	local SUBCOMMAND="${NAME_TO_FUNCTION["$1"]}"
+	if [[ ! -v USAGES["$SUBCOMMAND"] ]]; then
+		error "There is no usage information available for subcommand '%s'." "$1"
+		return 2
 	fi
 
 	# Perform the main routine.
-	local SUBCOMMAND="${NAME_TO_FUNCTION["$1"]}"
 	info '\n  %s\n' "${SYNOPSES[$SUBCOMMAND]}"
 	info '%s\n' "${USAGES[$SUBCOMMAND]}"
 }
@@ -306,14 +317,15 @@ newSubcommand   \
 	NAMES=i,init  \
 	LOCK=none     \
 	SYNOPSIS=\
-'gp {i | init} [-F | --follow-git] [-u | --update-gitignore]' \
+'[-F | --follow-git] [-u | --update-gitignore]' \
 	USAGE=\
-"creates a new '$GP_DIR' directory that is going to serve as the root directory
-for the remaining 'gp' commands. When the -F / --follow-git option is
-specified, the command will create the '$GP_DIR' directory next to the
-current Git repository root rather than inside the current working directory.
-When the -u / --update-gitignore option is specified, an entry for the
-'$GP_DIR' directory will be added to the '.gitignore' file."
+"creates a new '$GP_DIR' directory that is going to serve as the root
+directory for the remaining '$GP_EXECUTABLE' commands. When the -F /
+--follow-git option is specified, the command will create the '$GP_DIR'
+directory next to the current Git repository root rather than inside the
+current working directory.  When the -u / --update-gitignore option is
+specified, an entry for the '$GP_DIR' directory will be added to the
+'.gitignore' file."
 
 init() {
 	local FOLLOW_GIT=false
@@ -364,7 +376,7 @@ newSubcommand   \
 	NAMES=ls,list \
 	LOCK=shared   \
 	SYNOPSIS=\
-'gp {ls | list} [-p | --porcelain] [-H | --human-readable]' \
+'[[-p | --porcelain] | [-H | --human-readable] | [-a | --active]]' \
 	USAGE=\
 "lists the available Git-parallel repositories. When the -p / --porcelain
 option is specified or when the output of the command gets piped outside the
@@ -421,7 +433,7 @@ newSubcommand     \
 	NAMES=cr,create \
 	LOCK=exclusive  \
 	SYNOPSIS=\
-'gp {cr | create} [-m | --migrate] REPO...' \
+'[-m | --migrate] REPO...' \
 	USAGE=\
 'creates new Git-parallel REPOsitories. When the -m / --migrate option is
 specified, the REPOsitories are initialized with the contents of the currently
@@ -476,7 +488,7 @@ newSubcommand     \
 	NAMES=rm,remove \
 	LOCK=exclusive  \
 	SYNOPSIS=\
-'gp {rm | remove} [-f | --force] REPO...' \
+'[-f | --force] REPO...' \
 	USAGE=\
 'removes the specified Git-parallel REPOsitories. Removing the currently active
 Git repository requires the -f / --force option.'
@@ -542,12 +554,12 @@ newSubcommand       \
 	NAMES=co,checkout \
 	LOCK=exclusive    \
 	SYNOPSIS=\
-'gp {co | checkout} [-c | --create] [-m | --migrate] [-C | --clobber] REPO' \
+'[-c | --create] [-m | --migrate] [-C | --clobber] REPO' \
 	USAGE=\
 "switches to the specified Git-parallel REPOsitory. When the -c / --create
-option is specified, an equivalent of the 'gp create' command is performed
-beforehand. If there exists a '.git' directory that is not a symlink to
-'$GP_DIR' and that would therefore be overriden by the switch, the -C /
+option is specified, an equivalent of the '$GP_EXECUTABLE create' command is
+performed beforehand. If there exists a '.git' directory that is not a symlink
+to '$GP_DIR' and that would therefore be overriden by the switch, the -C /
 --clobber or the -m / migrate option is required."
 
 checkout() {
@@ -627,13 +639,13 @@ newSubcommand     \
 	NAME=do         \
 	LOCK=exclusive  \
 	SYNOPSIS=\
-'gp do [-f | --force] REPO... -- COMMAND' \
+'[-f | --force] REPO... -- COMMAND' \
 	USAGE=\
 "switches to every specified Git-parallel REPOsitory and executes 'git
-COMMAND'. Should 'git COMMAND' exit with a non-zero exit code, the 'gp do'
-command will be interrupted prematurely, unless the -f / --force option is
-specified. After the command has ended, the original Git repository will be
-restored."
+COMMAND'. Should 'git COMMAND' exit with a non-zero exit code, the
+'$GP_EXECUTABLE do' command will be interrupted prematurely, unless the -f /
+--force option is specified. After the command has ended, the original Git
+repository will be restored."
 
 do_cmd() {
 	local REPOS=()
@@ -693,12 +705,13 @@ newSubcommand      \
 	NAME=fe,foreach  \
 	LOCK=exclusive   \
 	SYNOPSIS=\
-'gp {foreach | fe} [-f | --force] COMMAND' \
+'[-f | --force] COMMAND' \
 	USAGE=\
 "switches to every Git-parallel REPOsitory and executes 'git COMMAND'. Should
-'git COMMAND' exit with a non-zero exit code, the 'gp foreach' command will be
-interrupted prematurely, unless the -f / --force option is specified. After the
-command has ended, the original Git repository will be restored."
+'git COMMAND' exit with a non-zero exit code, the '$GP_EXECUTABLE foreach'
+command will be interrupted prematurely, unless the -f / --force option is
+specified. After the command has ended, the original Git repository will be
+restored."
 
 foreach() {
 	local COMMAND=()
