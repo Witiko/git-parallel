@@ -32,20 +32,53 @@ wrap() {
 			echo `tput cols`
 		else
 			echo 80
-		fi)
+		fi) | if [[ $1 =~ --paragraph ]]; then
+			sed '2,$s/^/  /'
+		else
+			cat
+		fi
 	else
 		cat
 	fi
 }
 
 # Emit info or warning messages.
-info() { printf "$1\n" "${@:2}" | wrap 1>&2; }
-infocat() { wrap 1>&2; }
-error() { info "${@}"; }
-errcat() { infocat; }
+VERBOSE=true
+error() { printf -- "$1\n" "${@:2}" | wrap 1>&2; }
+errcat() { wrap 1>&2; }
+info() { $VERBOSE && error "${@}"; }
+infocat() { $VERBOSE && errcat; }
+
+# The main routine.
+[[ -v GP_EXECUTABLE ]] || GP_EXECUTABLE="${0##*/}"
+GLOBAL_OPTIONS='[-q | --quiet]'
+GLOBAL_USAGE=\
+"The -q / --quiet option makes '$GP_EXECUTABLE' omit extra informational
+output regarding its operation."
+
+main() {
+	# Collect the options.
+	if [[ -v NAME_TO_FUNCTION["$1"] ]]; then
+		SUBCOMMAND="${NAME_TO_FUNCTION["$1"]}"
+	else
+		case "$1" in
+			-q)																;& # fall-through
+			--quiet)		VERBOSE=false
+									main "${@:2}"
+									return $?							;;
+			-v)																;& # fall-through
+			--version)	version; return 0			;;
+			-h)																;& # fall-through
+			--help)			usage; return 0				;;
+			*)					usage; return 1				;;
+		esac
+	fi
+
+	# Execute the subcommand.
+	lock $SUBCOMMAND && $SUBCOMMAND "${@:2}"
+}
 
 # Register a new subcommand.
-[[ -v GP_EXECUTABLE ]] || GP_EXECUTABLE="${0##*/}"
 declare -A NAME_TO_FUNCTION LOCKS SYNOPSES USAGES
 declare -a SUBCOMMANDS
 newSubcommand() {
@@ -107,7 +140,7 @@ newSubcommand() {
 		NAME_TO_FUNCTION["$NAME"]=$FUNCTION
 	done
 	LOCKS[$FUNCTION]=$LOCK
-	SYNOPSES[$FUNCTION]="$GP_EXECUTABLE $(
+	SYNOPSES[$FUNCTION]="$(
 		if [[ ${#NAMES[@]} = 1 ]]; then
 			printf '%s\n' "${NAMES[0]}"
 		else
@@ -123,14 +156,18 @@ newSubcommand() {
 
 # Print the usage information.
 usage() {
-	infocat <<-'EOF'
+	wrap <<-EOF
 Usage:
+
+  $GP_EXECUTABLE $GLOBAL_OPTIONS COMMAND
+
+$GLOBAL_USAGE '$GP_EXECUTABLE' recognizes the following COMMANDs:
 
 	EOF
 	for SUBCOMMAND in "${SUBCOMMANDS[@]}"; do
-		info '  %s' "${SYNOPSES[$SUBCOMMAND]}"
+		printf '  %s\n' "${SYNOPSES[$SUBCOMMAND]}" | wrap --paragraph
 	done
-	infocat <<'EOF'
+	wrap <<EOF
 
 To see more information about any individual COMMAND, execute
 
@@ -138,29 +175,29 @@ To see more information about any individual COMMAND, execute
 
 EOF
 	if { ! hash flock || ! hash fmt; } 2>&-; then
-		info 'The following suggested binaries are unavailable at your system:'
-		hash flock 2>&- && infocat <<'EOF'
+		wrap <<<'The following suggested binaries are unavailable at your system:'
+		hash flock 2>&- && wrap <<'EOF'
 
   'flock' is used to perform advisory locking, when Git-parallel commands are
 executed. This can prevent race conditions on multi-user systems.
 EOF
-		hash fmt 2>&- && infocat <<'EOF'
+		hash fmt 2>&- && wrap <<'EOF'
 
   'fmt' is used to wrap the text output of Git-parallel, so that it fits your
 terminal neatly.
 EOF
-	info
+	echo
 	fi
-	info 'Report bugs to: <witiko@mail.muni.cz>'
-	info 'Git-parallel home page: <http://github.com/witiko/Git-parallel>'
+	wrap<<< 'Report bugs to: <witiko@mail.muni.cz>'
+	wrap<<< 'Git-parallel home page: <http://github.com/witiko/Git-parallel>'
 }
 
 # Print the version information.
-VERSION=2.0.1
+VERSION=2.0.2
 version() {
-	info 'Git-parallel version %s' "$VERSION"
-	info 'Copyright © 2016 Vít Novotný'
-	infocat <<-'EOF'
+	wrap <<<"Git-parallel version $VERSION"
+	wrap <<<"Copyright © 2016 Vít Novotný"
+	wrap <<-'EOF'
 		License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 		This is free software: you are free to change and redistribute it.
 		There is NO WARRANTY, to the extent permitted by law.
@@ -367,8 +404,8 @@ help() {
 	fi
 
 	# Perform the main routine.
-	info '\n  %s\n' "${SYNOPSES[$SUBCOMMAND]}"
-	info '%s\n' "${USAGES[$SUBCOMMAND]}"
+	wrap <<<$'\n'"  ${SYNOPSES[$SUBCOMMAND]}"$'\n'
+	wrap <<<"${USAGES[$SUBCOMMAND]}"$'\n'
 }
 
 newSubcommand      \
@@ -1105,18 +1142,4 @@ foreach() {
 
 # == The main routine ==
 
-# Collect the options.
-if [[ -v NAME_TO_FUNCTION["$1"] ]]; then
-	SUBCOMMAND="${NAME_TO_FUNCTION["$1"]}"
-else
-	case "$1" in
-		-v)															;& # fall-through
-		--version)	version; exit 0			;;
-		-h)															;& # fall-through
-		--help)			usage; exit 0				;;
-		*)					usage; exit 1				;;
-	esac
-fi
-
-# Execute the subcommand.
-lock $SUBCOMMAND && $SUBCOMMAND "${@:2}"
+main "$@"

@@ -30,9 +30,19 @@ _gp() {
 	local OPTS=()
 	local IFS=$' \t\n'
 
+	# Skip any leading global options.
+	local QUIET=false
+	for ((I = 1; I < $COMP_CWORD; I++)); do
+		[[ ! "${COMP_WORDS[$I]}" =~ ^-q|--quiet$ ]] && break
+		! $QUIET && QUIET=true
+		COMP_CWORD=$(($COMP_CWORD-1))
+		COMP_WORDS=("${COMP_WORDS[0]}" "${COMP_WORDS[@]:2}")
+	done
+
 	if [[ $COMP_CWORD -le 1 ]]; then
 		# Perform completion for the base command.
 		OPTS=(help --version -v --help -h)
+		! $QUIET && OPTS+=(-q --quiet)
 		if gp list &>/dev/null; then
 			OPTS+=(
 				co checkout cr create do ls list cp copy mv move rename rm remove fe
