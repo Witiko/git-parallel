@@ -9,7 +9,10 @@ being a symbolic link pointing to `.gitparallel/active-repo`.
 
  * [Bash 4+](https://www.gnu.org/software/bash/)
  * `flock` from [`util-linux`](/karelzak/util-linux) (optional)
- * `fmt` from [GNU Coreutils](http://www.gnu.org/software/coreutils/coreutils.html) (optional)
+ * `fmt` from [GNU Coreutils][] (optional)
+ * `readlink` from [GNU Coreutils][]
+
+[GNU Coreutils]: http://www.gnu.org/software/coreutils/coreutils.html
 
 ## How does `gp` relate to Git submodules?
 
@@ -80,6 +83,7 @@ basic usage of `gp`:
 	gp foreach commit -m 'initial commit.'
 
 	# Migrates an existing Git repository to gp.
+	git init
 	gp create --migrate repoC
 
 	# Switches between the gp repositories.

@@ -91,7 +91,7 @@ newSubcommand() {
 			return 5
 		fi
 	fi
-	if [[ "${#NAMES[@]}" = 0 ]]; then
+	if [[ ${#NAMES[@]} = 0 ]]; then
 		error '%s: No names specified.' $FUNCTION
 		return 6
 	fi
@@ -250,7 +250,7 @@ jumpToRoot() {
 # Retrieve the currently active repository.
 activeRepository() {
 	local LINK="`readlink .git`" &&
-	[[ "$LINK" =~ ^$GP_DIR_RE/ ]] && printf '%s\n' "${LINK#$GP_DIR/}"
+	[[ "$LINK" =~ ^$GP_DIR_RE/ ]] && printf '%s\n' ${LINK#$GP_DIR/}
 }
 
 # Remember or restore the current repository status.
@@ -258,22 +258,22 @@ stash() {
 	local STASH=$GP_DIR/.stashed
 	case "$1" in
 		remember)
-			if [[ -e "$STASH" ]]; then
+			if [[ -e $STASH ]]; then
 				error "There already exists a %s stashed at '%s'." \
-					`if [[ -d "$STASH" ]]; then
+					`if [[ -d $STASH ]]; then
 						printf 'Git repository'
 					else
 						printf 'symlink to a Git-parallel repository'
-					fi` "$PWD"/"$STASH"
+					fi` "$PWD"/$STASH
 				return 1
 			fi
 			if [[ -e .git ]]; then
-				mv .git "$STASH"
+				mv .git $STASH
 			fi	;;
 		restore)
 			rm .git &&
-			if [[ -e "$STASH" ]]; then
-				mv "$STASH" .git &&
+			if [[ -e $STASH ]]; then
+				mv $STASH .git &&
 				info "Restored the original Git repository in '%s'." "$PWD"
 			else
 				info "Removed the '.git' symlink from '%s'." "$PWD"
@@ -411,19 +411,19 @@ list() {
 
 	# Perform the main routine.
 	if [[ -d $GP_DIR ]]; then
-		local ACTIVE="`activeRepository`"
+		local ACTIVE=`activeRepository`
 		(shopt -s nullglob
 		local REPO; for REPO in $GP_DIR/*/; do
-			REPO=${REPO##$GP_DIR/}
-			REPO=${REPO%%/}
+			REPO="${REPO##$GP_DIR/}"
+			REPO="${REPO%%/}"
 			checkName "$REPO" 2>/dev/null || continue
 			printf '%s%s%s\n' "`if ! $PORCELAIN; then
-				if [[ "$REPO" = "$ACTIVE" ]]; then
+				if [[ $REPO = $ACTIVE ]]; then
 					printf '* \033[32m'
 				else
 					printf '  '
 				fi
-			fi`" "$REPO" "`$PORCELAIN || printf '\033[m'`"
+			fi`" $REPO "`$PORCELAIN || printf '\033[m'`"
 		done)
 	fi
 }
@@ -450,7 +450,7 @@ create() {
 			--migrate)	MIGRATE=true	;;
 			--)												;; # ignore
 			*)					checkName "$1" || return 1
-									REPOS+=("$1")	;;
+									REPOS+=($1)	;;
 		esac
 		shift
 	done
@@ -459,26 +459,26 @@ create() {
 	local GIT_ROOT
 	$MIGRATE && ! GIT_ROOT="`jumpToRoot .git && printf '%s\n' "$PWD"`" && return 2
 	jumpToRoot $GP_DIR || return 3
-	if [[ "${#REPOS[@]}" = 0 ]]; then
+	if [[ ${#REPOS[@]} = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
 		return 4
 	fi
-	local REPO; for REPO in "${REPOS[@]}"; do
-		if [[ -d $GP_DIR/"$REPO" ]]; then
-			error "The Git-parallel repository '%s' already exists." "$REPO"
+	local REPO; for REPO in ${REPOS[@]}; do
+		if [[ -d $GP_DIR/$REPO ]]; then
+			error "The Git-parallel repository '%s' already exists." $REPO
 			return 5
 		fi
 	done
 
 	# Perform the main routine.
-	for REPO in "${REPOS[@]}"; do
+	for REPO in ${REPOS[@]}; do
 		if $MIGRATE; then
-			cp -Ta "$GIT_ROOT"/.git $GP_DIR/"$REPO" &&
-			info "Migrated '%s/.git' to '%s/%s'." "$GIT_ROOT" "$PWD" $GP_DIR/"$REPO"
+			cp -Ta "$GIT_ROOT"/.git $GP_DIR/$REPO &&
+			info "Migrated '%s/.git' to '%s/%s'." "$GIT_ROOT" "$PWD" $GP_DIR/$REPO
 		else
-			mkdir $GP_DIR/"$REPO" &&
+			mkdir $GP_DIR/$REPO &&
 			info "Created an empty Git-parallel repository '%s' in '%s'." \
-				"$REPO" "$PWD"
+				$REPO "$PWD"
 		fi
 	done
 }
@@ -504,29 +504,29 @@ remove() {
 			--force)	FORCE=true		;;
 			--)											;; # ignore
 			*)				checkName "$1" || return 1
-								REPOS+=("$1")	;;
+								REPOS+=($1)		;;
 		esac
 		shift
 	done
 	
 	# Guard against bad input.
 	jumpToRoot $GP_DIR || return 2
-	if [[ "${#REPOS[@]}" = 0 ]]; then
+	if [[ ${#REPOS[@]} = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
 		return 3
 	fi
-	local REPO; for REPO in "${REPOS[@]}"; do
-		if [[ ! -d $GP_DIR/"$REPO" ]]; then
+	local REPO; for REPO in ${REPOS[@]}; do
+		if [[ ! -d $GP_DIR/$REPO ]]; then
 			error "The Git-parallel repository '%s' does not exist in '%s'." \
-				"$REPO" "$PWD"
+				$REPO "$PWD"
 			return 4
 		fi
 	done
 
 	# Guard against dubious input.
-	local ACTIVE="`activeRepository`"
-	for REPO in "${REPOS[@]}"; do
-		if [[ "$REPO" = "$ACTIVE" ]] && ! $FORCE; then
+	local ACTIVE=`activeRepository`
+	for REPO in ${REPOS[@]}; do
+		if [[ $REPO = $ACTIVE ]] && ! $FORCE; then
 			errcat <<-EOF
 The Git-parallel repository	'$REPO' is active. By removing it, the contents of
 your active Git repository WILL BE LOST! To approve the removal, specify the -f
@@ -537,14 +537,14 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -f
 	done
 
 	# Perform the main routine.
-	for REPO in "${REPOS[@]}"; do
-		rm -rf $GP_DIR/"$REPO" &&
-		if [[ "$REPO" = "$ACTIVE" ]]; then
+	for REPO in ${REPOS[@]}; do
+		rm -rf $GP_DIR/$REPO &&
+		if [[ $REPO = $ACTIVE ]]; then
 			rm .git
 			info "Removed the active Git-parallel repository '%s' from '%s'." \
-				"$REPO" "$PWD"
+				$REPO "$PWD"
 		else
-			info "Removed the Git-parallel repository '%s' from '%s'." "$REPO" "$PWD"
+			info "Removed the Git-parallel repository '%s' from '%s'." $REPO "$PWD"
 		fi
 	done
 }
@@ -579,10 +579,10 @@ checkout() {
 			--clobber)	CLOBBER=true	;;
 			--)												;; # ignore
 			 *)					checkName "$1" || return 1
-				 					if [[ -z "$REPO" ]]; then
-										REPO="$1"
+				 					if [[ -z $REPO ]]; then
+										REPO=$1
 									else
-										error 'More than one Git-parallel repository was specified.'
+										error 'More than one Git-parallel repository were specified.'
 										return 2
 									fi						;;
 		esac
@@ -591,8 +591,8 @@ checkout() {
 
 	# Guard against bad input.
 	jumpToRoot $GP_DIR || return 3
-	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && return 4
-	if [[ ! -d $GP_DIR/"$REPO" ]] && ! $CREATE; then
+	[[ -z $REPO ]] && error 'No Git-parallel repository was specified.' && return 4
+	if [[ ! -d $GP_DIR/$REPO ]] && ! $CREATE; then
 		errcat <<-EOF
 The Git-parallel repository '$REPO' does not exist in '$PWD'. Specify the -c /
 --create option to create the repository.
@@ -613,8 +613,8 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 	fi
 
 	# Guard against harmless input.
-	if ! $CREATE && [[ "$REPO" = "`activeRepository`" ]]; then
-		info "The Git-parallel repository '%s' is already active." "$REPO"
+	if ! $CREATE && [[ $REPO = `activeRepository` ]]; then
+		info "The Git-parallel repository '%s' is already active." $REPO
 		return 0
 	fi
 
@@ -622,15 +622,15 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 	export OLDPWD && # Jump back to the original PWD for the `gp create` call.
 	if $CREATE; then
 		(cd "$OLDPWD" &&
-		create `$MIGRATE && echo --migrate` -- "$REPO")
+		create `$MIGRATE && echo --migrate` -- $REPO)
 	fi &&
-	rm -rf .git && ln -s $GP_DIR/"$REPO" .git &&
+	rm -rf .git && ln -s $GP_DIR/$REPO .git &&
 
 	# Print additional information.
 	if $CREATE; then
-		info "Switched to a new Git-parallel repository '%s'." "$REPO"
+		info "Switched to a new Git-parallel repository '%s'." $REPO
 	else
-		info "Switched to the Git-parallel repository '%s'." "$REPO"
+		info "Switched to the Git-parallel repository '%s'." $REPO
 	fi
 }
 
@@ -659,7 +659,7 @@ do_cmd() {
 			--force)	FORCE=true					;;
 			--)				shift; break				;;
 			 *)				checkName "$1" || return 1
-								REPOS+=("$1")				;;
+								REPOS+=($1)					;;
 		esac
 		shift
 	done
@@ -673,14 +673,14 @@ do_cmd() {
 	# Guard against bad input.
 	local PREVIOUS_PWD="$PWD"
 	jumpToRoot $GP_DIR || return 3
-	if [[ "${#REPOS[@]}" = 0 ]]; then
+	if [[ ${#REPOS[@]} = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
 		return 4
 	fi
-	local REPO; for REPO in "${REPOS[@]}"; do
-		if [[ ! -d $GP_DIR/"$REPO" ]]; then
+	local REPO; for REPO in ${REPOS[@]}; do
+		if [[ ! -d $GP_DIR/$REPO ]]; then
 			error "The Git-parallel repository '%s' does not exist in '%s'." \
-				"$REPO" "$PWD"
+				$REPO "$PWD"
 			return 5
 		fi
 	done
@@ -688,8 +688,8 @@ do_cmd() {
 	# Perform the main routine.
 	local LOOP_BROKEN=false
 	stash remember 1>&2 && {
-	for REPO in "${REPOS[@]}"; do
-		! checkout -- "$REPO" 1>&2 && ! $FORCE && break
+	for REPO in ${REPOS[@]}; do
+		! checkout -- $REPO 1>&2 && ! $FORCE && break
 		if (cd "$PREVIOUS_PWD" && git "${COMMAND[@]}"); then :; else
 			local COMMAND_STRING="${COMMAND[@]}"
 			error "The command 'git %s' failed." "$COMMAND_STRING"
