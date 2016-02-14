@@ -34,7 +34,10 @@ _gp() {
 		# Perform completion for the base command.
 		OPTS=(help --version -v --help -h)
 		if gp list &>/dev/null; then
-			OPTS+=(co checkout cr create do ls list rename rm remove fe foreach)
+			OPTS+=(
+				co checkout cr create do ls list cp copy mv move rename rm remove fe
+				foreach
+			)
 		else
 			OPTS+=(i init upgrade)
 		fi
@@ -63,9 +66,50 @@ _gp() {
 						break
 					fi
 				done
-				if ! $REPO_SPECIFIED; then
+				if $CREATE; then
+					! $MIGRATE && OPTS+=(-m --migrate)
+				else
+					OPTS+=(-c --create)
+				fi
+				! $CLOBBER && OPTS+=(-C --clobber)
+				! $REPO_SPECIFIED && OPTS+=($REPOS)
+				;;
+			cp) ;& copy)
+				local CLOBBER=false
+				local FORCE=false
+				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
+						CLOBBER=true
+					fi
+					if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
+						FORCE=true
+					fi
+				done
+				OPTS=($REPOS)
+				! $CLOBBER && OPTS+=(-C --clobber)
+				! $FORCE && OPTS+=(-f --force)
+				;;
+			mv) ;& move) ;& rename)
+				# Suggest repository names, if <2 repositories have been specified.
+				local REPOS_SPECIFIED=0
+				local CLOBBER=false
+				local FORCE=false
+				for ((I = 2; I < $COMP_CWORD; I++)); do
+					if grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
+						REPOS_SPECIFIED=$((REPOS_SPECIFIED+1))
+					fi
+					if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
+						CLOBBER=true
+					fi
+					if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
+						FORCE=true
+					fi
+				done
+				if [[ $REPOS_SPECIFIED -lt 2 ]]; then
 					OPTS+=($REPOS)
 				fi
+				! $CLOBBER && OPTS+=(-C --clobber)
+				! $FORCE && OPTS+=(-f --force)
 				;;
 			rm) ;& remove)
 				local FORCE=false
@@ -163,8 +207,8 @@ _gp() {
 				;;
 			help)
 				OPTS=(
-					i init co checkout cr create do ls list rename rm remove fe foreach
-					upgrade
+					i init co checkout cr create do ls list cp copy mv move rename rm
+					remove fe foreach upgrade
 				)
 				;;
 		esac

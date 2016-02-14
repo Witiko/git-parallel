@@ -156,7 +156,7 @@ EOF
 }
 
 # Print the version information.
-VERSION=2.0.0
+VERSION=2.0.1
 version() {
 	info 'Git-parallel version %s' "$VERSION"
 	info 'Copyright © 2016 Vít Novotný'
@@ -656,6 +656,180 @@ create() {
 			fi
 		fi || return 6
 	done
+}
+
+newSubcommand    \
+	FUNCTION=copy  \
+	NAMES=cp,copy  \
+	LOCK=exclusive \
+	SYNOPSIS=\
+'[-C | --clobber] {DEST | SOURCE DEST...}' \
+	USAGE=\
+'copies the Git-parallel repository SOURCE to DEST. If SOURCE is unspecified,
+the currently active Git-parallel repository will be copied. Overriding
+existing DEST repositories requires the -C / --clobber option.'
+
+copy() {
+	local REPOS=()
+	local CLOBBER=false
+	local FORCE=false
+
+	# Collect the options.
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-C)												;& # fall-through
+			--clobber)	CLOBBER=true	;;
+			-f)											;& # fall-through
+			--force)	FORCE=true		;;
+			--)												;; # ignore
+			*)					checkName "$1" || return 1
+									REPOS+=($1)	;;
+		esac
+		shift
+	done
+
+	# Process the options.
+	local SOURCE DESTS
+	jumpToRoot $GP_DIR || return 2
+	if [[ ${#REPOS[@]} = 0 ]]; then
+		error 'No Git-parallel repositories specified.'
+		return 2
+	fi
+	if [[ ${#REPOS[@]} = 1 ]]; then
+		if ! SOURCE=`list --active`; then
+			errcat<<-'EOF'
+No source Git-parallel repository was specified and could not be inferred,
+since no Git-parallel repository is currently active.
+			EOF
+			return 3
+		fi
+		DESTS=(${REPOS[0]})
+	else
+		SOURCE=${REPOS[0]}
+		local IFS=$'\n' # Remove duplicates from the array.
+		DESTS=($(awk '!s[$0]++' <<<"$(printf '%s\n' "${REPOS[*]:1}")"))
+		IFS=
+	fi
+
+	# Guard against bad input.
+	if [[ ! -d $GP_DIR/$SOURCE ]]; then
+		error "The Git-parallel repository '%s' does not exist." $SOURCE
+		return 4
+	fi
+
+	local DEST; for DEST in ${DESTS[@]}; do
+		# Guard against bad input.
+		if [[ -d $GP_DIR/$DEST ]] && ! $CLOBBER; then
+			errcat <<-EOF
+A Git-parallel repository '$DEST' already exists. To override the existing
+repository, specify the -C / --clobber option.
+			EOF
+			return 5
+		fi
+
+		# Guard against dubious input.
+		if [[ $SOURCE = $DEST ]]; then
+			errcat <-EOF
+You are attempting to move the Git-parallel repository $SOURCE onto itself.
+			EOF
+			return 6
+		fi
+	done
+
+	# Perform the main routine.
+	local ACTIVE=`list --active 2>/dev/null`
+	for DEST in ${DESTS[@]}; do
+		if [[ $DEST = $ACTIVE ]]; then
+			rm $GP_DIR/$DEST &&
+			info 'There is currently no active Git-parallel repository.'
+		else
+			rm -rf $GP_DIR/$DEST
+		fi && cp -Ta $GP_DIR/$SOURCE/ $GP_DIR/$DEST || return 7
+	done
+}
+
+newSubcommand          \
+	FUNCTION=move        \
+	NAMES=mv,move,rename \
+	LOCK=exclusive       \
+	SYNOPSIS=\
+'[-C | --clobber] [SOURCE] DEST' \
+	USAGE=\
+'renames the Git-parallel repository SOURCE to DEST. If SOURCE is unspecified,
+the currently active Git-parallel repository will be renamed. Overriding an
+existing DEST repository requires the -C / --clobber option.'
+
+move() {
+	local REPOS=()
+	local CLOBBER=false
+	local FORCE=false
+
+	# Collect the options.
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-C)												;& # fall-through
+			--clobber)	CLOBBER=true	;;
+			-f)												;& # fall-through
+			--force)		FORCE=true		;;
+			--)												;; # ignore
+			*)					checkName "$1" || return 1
+									REPOS+=($1)	;;
+		esac
+		shift
+	done
+
+	# Process the options.
+	local SOURCE DEST
+	jumpToRoot $GP_DIR || return 2
+	if [[ ${#REPOS[@]} = 0 || ${#REPOS[@]} -gt 2 ]]; then
+		errcat <<-EOF
+An incorrect number of Git-parallel repositories (${#REPOS[@]}) specified.
+		EOF
+		return 2
+	fi
+	if [[ ${#REPOS[@]} = 1 ]]; then
+		if ! SOURCE=`list --active 2>/dev/null`; then
+			errcat<<-'EOF'
+No source Git-parallel repository was specified and could not be inferred,
+since no Git-parallel repository is currently active.
+			EOF
+			return 3
+		fi
+		DEST=${REPOS[0]}
+	else
+		SOURCE=${REPOS[0]}
+		DEST=${REPOS[1]}
+	fi
+
+	# Guard against bad input.
+	if [[ ! -d $GP_DIR/$SOURCE ]]; then
+		error "The Git-parallel repository '%s' does not exist." $SOURCE
+		return 4
+	fi
+	if [[ -d $GP_DIR/$DEST ]] && ! $CLOBBER; then
+		errcat <<-EOF
+A Git-parallel repository '$DEST' already exists. To override the existing
+repository, specify the -C / --clobber option.
+		EOF
+		return 5
+	fi
+
+	# Guard against dubious input.
+	if [[ $SOURCE = $DEST ]]; then
+		errcat <-EOF
+You are attempting to move the Git-parallel repository $DEST onto itself.
+		EOF
+		return 5
+	fi
+
+	# Perform the main routine.
+	local ACTIVE=`list --active 2>/dev/null`
+	if [[ $DEST = $ACTIVE ]]; then
+		rm $GP_DIR/$DEST &&
+		info 'There is currently no active Git-parallel repository.'
+	else
+		rm -rf $GP_DIR/$DEST
+	fi && mv -T $GP_DIR/$SOURCE $GP_DIR/$DEST || return 6
 }
 
 newSubcommand     \

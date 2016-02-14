@@ -163,6 +163,328 @@ create_checkNames() {
 	return 0
 }
 
+## == Tests for the `copy` subcommand ==
+### Test the basic functionality of the command.
+TESTS+=(copy)
+copy() {
+	./gp init
+	./gp create a || return 1
+	./gp copy a b || return 2
+	[[ -d .gitparallel/a ]] || return 3
+	[[ -d .gitparallel/b ]] || return 4
+	return 0
+}
+
+### Test that the command fails without `init`.
+TESTS+=(copy_noinit)
+copy_noinit() {
+	./gp init
+	./gp create a || return 1
+	rm -r .gitparallel || return 2
+	./gp copy a b && return 3
+	return 0
+}
+
+### Test the correct handling of --.
+TESTS+=(copy_dbldash)
+copy_dbldash() {
+	./gp init
+	./gp create a || return 1
+	./gp copy a -- b || return 2
+	[[ -d .gitparallel/a ]] || return 3
+	[[ -d .gitparallel/b ]] || return 4
+	return 0
+}
+
+### Test the correct handling of empty input.
+TESTS+=(copy_empty)
+copy_empty() {
+	./gp init
+	./gp copy && return 1
+	return 0
+}
+
+### Test the correct handling of non-existent source directory.
+TESTS+=(copy_bad_source)
+copy_bad_source() {
+	./gp init
+	./gp create a || return 1
+	./gp copy b c && return 2
+	[[ -d .gitparallel/a ]] || return 3
+	[[ -d .gitparallel/b ]] && return 4
+	[[ -d .gitparallel/c ]] && return 5
+	return 0
+}
+
+### Test the correct handling of extraneous input.
+TESTS+=(copy_extra)
+copy_extra() {
+	./gp init
+	./gp create a || return 1
+	./gp copy a b c || return 2
+	[[ -d .gitparallel/a ]] || return 3
+	[[ -d .gitparallel/b ]] || return 4
+	[[ -d .gitparallel/c ]] || return 5
+	return 0
+}
+
+### Test the correct handling of the command alias.
+TESTS+=(copy_alias)
+copy_alias() {
+	./gp init
+	./gp create a || return 1
+	./gp cp a b || return 2
+	[[ -d .gitparallel/a ]] || return 3
+	[[ -d .gitparallel/b ]] || return 4
+	return 0
+}
+
+### Test the correct handling of illegal project names.
+TESTS+=(copy_checkNames)
+copy_checkNames() {
+	./gp init
+	./gp create a || return 1
+	./gp copy a '' && return 2
+	./gp copy a b/c && return 3
+	./gp copy a 'a
+	             b' && return 4
+	./gp copy a . && return 5
+	./gp copy a a. || return 6
+	./gp copy a. --bogus && return 7
+	./gp copy a. bo-gus || return 8
+	./gp copy bo-gus 'c d' && return 9
+	./gp copy bo-gus 'c	d' && return 10
+	[[ -d .gitparallel/bo-gus ]] || return 11
+	return 0
+}
+
+### Test the inferrence capabilities of the command.
+TESTS+=(copy_infer)
+copy_infer() {
+	./gp init
+	./gp create a || return 1
+	mv -T .gitparallel/a .git || return 2
+	cd .gitparallel || return 3
+	ln -s ../.git a || return 4
+	cd .. || return 5
+	./gp copy b || return 6
+	[[ -d .gitparallel/a ]] || return 7
+	[[ -d .gitparallel/b ]] || return 8
+	rm -r .gitparallel/a || return 9
+	mv -T .git .gitparallel/a || return 10
+	./gp copy c && return 11
+	[[ -d .gitparallel/a ]] || return 12
+	[[ -d .gitparallel/b ]] || return 13
+	[[ -d .gitparallel/c ]] && return 14
+	return 0
+}
+
+### Test the correct handling of copying a repo to itself.
+TESTS+=(copy_toself)
+copy_toself() {
+	./gp init
+	./gp create a || return 1
+	./gp copy a && return 2
+	./gp copy a a && return 3
+	return 0
+}
+
+### Test the correct handling of specifying duplicate repos.
+TESTS+=(copy_duplicates)
+copy_duplicates() {
+	./gp init
+	./gp create a || return 1
+	./gp copy a b b c c b c || return 2
+	[[ -d .gitparallel/a ]] || return 3
+	[[ -d .gitparallel/b ]] || return 4
+	[[ -d .gitparallel/c ]] || return 5
+	return 0
+}
+
+### Test the correct handling of the -C / --clobber option.
+TESTS+=(copy_clobber)
+copy_clobber() {
+	./gp init
+	./gp create a b c || return 1
+	touch .gitparallel/a/fileA
+	touch .gitparallel/b/fileB
+	./gp copy a b && return 2
+	[[ -e .gitparallel/a/fileA ]] || return 3
+	[[ -e .gitparallel/a/fileB ]] && return 4
+	[[ -e .gitparallel/b/fileA ]] && return 5
+	[[ -e .gitparallel/b/fileB ]] || return 6
+	[[ -d .gitparallel/c ]] || return 7
+	./gp copy --clobber a b || return 8
+	[[ -e .gitparallel/a/fileA ]] || return 9
+	[[ -e .gitparallel/a/fileB ]] && return 10
+	[[ -e .gitparallel/b/fileA ]] || return 11
+	[[ -e .gitparallel/b/fileB ]] && return 12
+	[[ -d .gitparallel/c ]] || return 13
+	./gp copy -C b c || return 14
+	[[ -e .gitparallel/a/fileA ]] || return 15
+	[[ -e .gitparallel/a/fileB ]] && return 16
+	[[ -e .gitparallel/b/fileA ]] || return 17
+	[[ -e .gitparallel/b/fileB ]] && return 18
+	[[ -e .gitparallel/c/fileA ]] || return 19
+	[[ -e .gitparallel/c/fileB ]] && return 20
+	return 0
+}
+
+## == Tests for the `move` subcommand ==
+### Test the basic functionality of the command.
+TESTS+=(move)
+move() {
+	./gp init
+	./gp create a || return 1
+	./gp move a b || return 2
+	[[ -d .gitparallel/a ]] && return 3
+	[[ -d .gitparallel/b ]] || return 4
+	return 0
+}
+
+### Test that the command fails without `init`.
+TESTS+=(move_noinit)
+move_noinit() {
+	./gp init
+	./gp create a || return 1
+	rm -r .gitparallel || return 2
+	./gp move a b && return 3
+	return 0
+}
+
+### Test the correct handling of --.
+TESTS+=(move_dbldash)
+move_dbldash() {
+	./gp init
+	./gp create a || return 1
+	./gp move a -- b || return 2
+	[[ -d .gitparallel/a ]] && return 3
+	[[ -d .gitparallel/b ]] || return 4
+	return 0
+}
+
+### Test the correct handling of empty input.
+TESTS+=(move_empty)
+move_empty() {
+	./gp init
+	./gp move && return 1
+	return 0
+}
+
+### Test the correct handling of non-existent source directory.
+TESTS+=(move_bad_source)
+move_bad_source() {
+	./gp init
+	./gp create a || return 1
+	./gp move b c && return 2
+	[[ -d .gitparallel/a ]] || return 3
+	[[ -d .gitparallel/b ]] && return 4
+	[[ -d .gitparallel/c ]] && return 5
+	return 0
+}
+
+### Test the correct handling of extraneous input.
+TESTS+=(move_extra)
+move_extra() {
+	./gp init
+	./gp create a || return 1
+	./gp move a b c && return 2
+	[[ -d .gitparallel/a ]] || return 3
+	[[ -d .gitparallel/b ]] && return 4
+	[[ -d .gitparallel/c ]] && return 5
+	return 0
+}
+
+### Test the correct handling of the command alias.
+TESTS+=(move_alias_mv)
+move_alias_mv() {
+	./gp init
+	./gp create a || return 1
+	./gp mv a b || return 2
+	[[ -d .gitparallel/a ]] && return 3
+	[[ -d .gitparallel/b ]] || return 4
+	return 0
+}
+
+### Test the correct handling of the command alias.
+TESTS+=(move_alias_rename)
+move_alias_rename() {
+	./gp init
+	./gp create a || return 1
+	./gp rename a b || return 2
+	[[ -d .gitparallel/a ]] && return 3
+	[[ -d .gitparallel/b ]] || return 4
+	return 0
+}
+
+### Test the correct handling of illegal project names.
+TESTS+=(move_checkNames)
+move_checkNames() {
+	./gp init
+	./gp create a || return 1
+	./gp move a '' && return 2
+	./gp move a b/c && return 3
+	./gp move a 'a
+	             b' && return 4
+	./gp move a . && return 5
+	./gp move a a. || return 6
+	./gp move a. --bogus && return 7
+	./gp move a. bo-gus || return 8
+	./gp move bo-gus 'c d' && return 9
+	./gp move bo-gus 'c	d' && return 10
+	[[ -d .gitparallel/bo-gus ]] || return 11
+	return 0
+}
+
+### Test the inferrence capabilities of the command.
+TESTS+=(move_infer)
+move_infer() {
+	./gp init
+	./gp create a || return 1
+	mv -T .gitparallel/a .git || return 2
+	cd .gitparallel || return 3
+	ln -s ../.git a || return 4
+	cd .. || return 5
+	./gp move b || return 6
+	[[ -d .gitparallel/a ]] && return 7
+	[[ -d .gitparallel/b ]] || return 8
+	rm -r .gitparallel/b || return 9
+	mv -T .git .gitparallel/b || return 10
+	./gp move c && return 11
+	[[ -d .gitparallel/a ]] && return 12
+	[[ -d .gitparallel/b ]] || return 13
+	[[ -d .gitparallel/c ]] && return 14
+	return 0
+}
+
+### Test the correct handling of moving a repo to itself.
+TESTS+=(move_toself)
+move_toself() {
+	./gp init
+	./gp create a || return 1
+	./gp move a && return 2
+	./gp move a a && return 3
+	return 0
+}
+
+### Test the correct handling of the -C / --clobber option.
+TESTS+=(move_clobber)
+move_clobber() {
+	./gp init
+	./gp create a b c || return 1
+	touch .gitparallel/a/test || return 2
+	./gp move a b && return 3
+	./gp move --clobber a b || return 4
+	[[ -d .gitparallel/a ]] && return 5
+	[[ -e .gitparallel/b/test ]] || return 6
+	[[ -e .gitparallel/c/test ]] && return 7
+	./gp move -C b c || return 8
+	[[ -d .gitparallel/a ]] && return 9
+	[[ -d .gitparallel/b ]] && return 10
+	[[ -e .gitparallel/c/test ]] || return 11
+	return 0
+}
+
 ## == Tests for the `remove` subcommand ==
 ### Test the basic functionality of the command.
 TESTS+=(remove)
