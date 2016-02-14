@@ -189,13 +189,15 @@ checkName() {
 }
 
 # Acquire the advisory lock for the subcommand $1.
+GP_DIR=.gitparallel
+GP_DIR_RE=`eval echo \\$GP_DIR`
 lock() {
 	local SUBCOMMAND=$1
 	if hash flock 2>&-; then
 		LOCKTYPE=${LOCKS[$SUBCOMMAND]}
-		if [[ $LOCKTYPE != none ]] && ROOT=`findRoot .gitparallel`; then
+		if [[ $LOCKTYPE != none ]] && ROOT=`findRoot $GP_DIR 2>/dev/null`; then
 			LOCKDESCRIPTOR=3
-			LOCKPATH=$ROOT/.gitparallel/.lock
+			LOCKPATH=$ROOT/$GP_DIR/.lock
 			eval exec $LOCKDESCRIPTOR\>$LOCKPATH
 			if ! flock --nonblock --$LOCKTYPE $LOCKDESCRIPTOR; then
 				# Be verbose, if the lock is currently held.
@@ -240,12 +242,12 @@ jumpToRoot() {
 # Retrieve the currently active repository.
 activeRepository() {
 	local LINK="`readlink .git`" &&
-	[[ "$LINK" =~ ^\.gitparallel/ ]] && printf '%s\n' "${LINK#.gitparallel/}"
+	[[ "$LINK" =~ ^$GP_DIR_RE/ ]] && printf '%s\n' "${LINK#$GP_DIR/}"
 }
 
 # Remember or restore the current repository status.
 stash() {
-	local STASH=.gitparallel/.stashed
+	local STASH=$GP_DIR/.stashed
 	case "$1" in
 		remember)
 			if [[ -e "$STASH" ]]; then
@@ -306,12 +308,12 @@ newSubcommand   \
 	SYNOPSIS=\
 'gp {i | init} [-F | --follow-git] [-u | --update-gitignore]' \
 	USAGE=\
-"creates a new '.gitparallel' directory that is going to serve as the root
-directory for the remaining 'gp' commands. When the -F / --follow-git option is
-specified, the command will create the '.gitparallel' directory next to the
+"creates a new '$GP_DIR' directory that is going to serve as the root directory
+for the remaining 'gp' commands. When the -F / --follow-git option is
+specified, the command will create the '$GP_DIR' directory next to the
 current Git repository root rather than inside the current working directory.
 When the -u / --update-gitignore option is specified, an entry for the
-'.gitparallel' directory will be added to the '.gitignore' file."
+'$GP_DIR' directory will be added to the '.gitignore' file."
 
 init() {
 	local FOLLOW_GIT=false
@@ -333,22 +335,22 @@ init() {
 
 	# Guard against bad input.
 	$FOLLOW_GIT && ! jumpToRoot .git && return 1
-	if [[ -d .gitparallel ]]; then
-		error "There already exists a '.gitparallel' directory in '%s'." "$PWD"
+	if [[ -d $GP_DIR ]]; then
+		error "There already exists a '$GP_DIR' directory in '%s'." "$PWD"
 		return 2
 	fi
 
 	# Perform the main routine.
-	mkdir .gitparallel-incomplete && touch .gitparallel-incomplete/.lock &&
-	mv .gitparallel-incomplete .gitparallel &&
-	info "Created a '.gitparallel' directory in '%s'." "$PWD" &&
+	mkdir $GP_DIR-incomplete && touch $GP_DIR-incomplete/.lock &&
+	mv $GP_DIR-incomplete $GP_DIR &&
+	info "Created a '%s' directory in '%s'." $GP_DIR "$PWD" &&
 	if $UPDATE_GITIGNORE; then
 		if [[ ! -e .gitignore ]]; then
-			printf '.gitparallel\n' >.gitignore
+			printf '%s\n' $GP_DIR >.gitignore
 			info "Created a '.gitignore' file."
 		else
-			if [[ -e .gitignore ]] && ! grep -q '^\.gitparallel' <.gitignore; then
-				printf '.gitparallel\n' >>.gitignore
+			if [[ -e .gitignore ]] && ! grep -q ^$GP_DIR_RE <.gitignore; then
+				printf '%s\n' $GP_DIR >>.gitignore
 				info "Updated the '.gitignore' file."
 			else
 				info "No update of the '.gitignore' file was necessary."
@@ -366,7 +368,7 @@ newSubcommand   \
 	USAGE=\
 "lists the available Git-parallel repositories. When the -p / --porcelain
 option is specified or when the output of the command gets piped outside the
-terminal, a raw newline-terminated list is produced.  When the -H /
+terminal, a raw newline-terminated list is produced. When the -H /
 --human-readable option is specified or when the output of the command stays in
 the terminal, a formatted list is produced."
 
@@ -393,14 +395,14 @@ list() {
 	done
 
 	# Guard against bad input.
-	jumpToRoot .gitparallel || return 1
+	jumpToRoot $GP_DIR || return 1
 
 	# Perform the main routine.
-	if [[ -d .gitparallel ]]; then
+	if [[ -d $GP_DIR ]]; then
 		local ACTIVE="`activeRepository`"
 		(shopt -s nullglob
-		local REPO; for REPO in .gitparallel/*/; do
-			REPO=${REPO##.gitparallel/}
+		local REPO; for REPO in $GP_DIR/*/; do
+			REPO=${REPO##$GP_DIR/}
 			REPO=${REPO%%/}
 			checkName "$REPO" 2>/dev/null || continue
 			printf '%s%s%s\n' "`if ! $PORCELAIN; then
@@ -444,13 +446,13 @@ create() {
 	# Guard against bad input.
 	local GIT_ROOT
 	$MIGRATE && ! GIT_ROOT="`jumpToRoot .git && printf '%s\n' "$PWD"`" && return 2
-	jumpToRoot .gitparallel || return 3
+	jumpToRoot $GP_DIR || return 3
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
 		return 4
 	fi
 	local REPO; for REPO in "${REPOS[@]}"; do
-		if [[ -d .gitparallel/"$REPO" ]]; then
+		if [[ -d $GP_DIR/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' already exists." "$REPO"
 			return 5
 		fi
@@ -458,12 +460,11 @@ create() {
 
 	# Perform the main routine.
 	for REPO in "${REPOS[@]}"; do
-		local PATHNAME=.gitparallel/"$REPO" 
 		if $MIGRATE; then
-			cp -a "$GIT_ROOT"/.git/ "$PATHNAME" &&
-			info "Migrated '%s/.git' to '%s/%s'." "$GIT_ROOT" "$PWD" "$PATHNAME"
+			cp -Ta "$GIT_ROOT"/.git $GP_DIR/"$REPO" &&
+			info "Migrated '%s/.git' to '%s/%s'." "$GIT_ROOT" "$PWD" $GP_DIR/"$REPO"
 		else
-			mkdir "$PATHNAME" &&
+			mkdir $GP_DIR/"$REPO" &&
 			info "Created an empty Git-parallel repository '%s' in '%s'." \
 				"$REPO" "$PWD"
 		fi
@@ -497,13 +498,13 @@ remove() {
 	done
 	
 	# Guard against bad input.
-	jumpToRoot .gitparallel || return 2
+	jumpToRoot $GP_DIR || return 2
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
 		return 3
 	fi
 	local REPO; for REPO in "${REPOS[@]}"; do
-		if [[ ! -d .gitparallel/"$REPO" ]]; then
+		if [[ ! -d $GP_DIR/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' does not exist in '%s'." \
 				"$REPO" "$PWD"
 			return 4
@@ -514,18 +515,18 @@ remove() {
 	local ACTIVE="`activeRepository`"
 	for REPO in "${REPOS[@]}"; do
 		if [[ "$REPO" = "$ACTIVE" ]] && ! $FORCE; then
-			errcat <<EOF
+			errcat <<-EOF
 The Git-parallel repository	'$REPO' is active. By removing it, the contents of
 your active Git repository WILL BE LOST! To approve the removal, specify the -f
 / --force option.
-EOF
+			EOF
 			return 5
 		fi
 	done
 
 	# Perform the main routine.
 	for REPO in "${REPOS[@]}"; do
-		rm -rf .gitparallel/"$REPO" &&
+		rm -rf $GP_DIR/"$REPO" &&
 		if [[ "$REPO" = "$ACTIVE" ]]; then
 			rm .git
 			info "Removed the active Git-parallel repository '%s' from '%s'." \
@@ -545,8 +546,8 @@ newSubcommand       \
 	USAGE=\
 "switches to the specified Git-parallel REPOsitory. When the -c / --create
 option is specified, an equivalent of the 'gp create' command is performed
-beforehand.  If there exists a '.git' directory that is not a symlink to
-'.gitparallel' and that would therefore be overriden by the switch, the -C /
+beforehand. If there exists a '.git' directory that is not a symlink to
+'$GP_DIR' and that would therefore be overriden by the switch, the -C /
 --clobber or the -m / migrate option is required."
 
 checkout() {
@@ -577,9 +578,9 @@ checkout() {
 	done
 
 	# Guard against bad input.
-	jumpToRoot .gitparallel || return 3
+	jumpToRoot $GP_DIR || return 3
 	[[ -z "$REPO" ]] && error 'No Git-parallel repository was specified.' && return 4
-	if [[ ! -d .gitparallel/"$REPO" ]] && ! $CREATE; then
+	if [[ ! -d $GP_DIR/"$REPO" ]] && ! $CREATE; then
 		errcat <<-EOF
 The Git-parallel repository '$REPO' does not exist in '$PWD'. Specify the -c /
 --create option to create the repository.
@@ -611,7 +612,7 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 		(cd "$OLDPWD" &&
 		create `$MIGRATE && echo --migrate` -- "$REPO")
 	fi &&
-	rm -rf .git && ln -s .gitparallel/"$REPO" .git &&
+	rm -rf .git && ln -s $GP_DIR/"$REPO" .git &&
 
 	# Print additional information.
 	if $CREATE; then
@@ -659,13 +660,13 @@ do_cmd() {
 
 	# Guard against bad input.
 	local PREVIOUS_PWD="$PWD"
-	jumpToRoot .gitparallel || return 3
+	jumpToRoot $GP_DIR || return 3
 	if [[ "${#REPOS[@]}" = 0 ]]; then
 		error 'No Git-parallel repositories were specified.'
 		return 4
 	fi
 	local REPO; for REPO in "${REPOS[@]}"; do
-		if [[ ! -d .gitparallel/"$REPO" ]]; then
+		if [[ ! -d $GP_DIR/"$REPO" ]]; then
 			error "The Git-parallel repository '%s' does not exist in '%s'." \
 				"$REPO" "$PWD"
 			return 5
