@@ -504,13 +504,16 @@ newSubcommand   \
 	SYNOPSIS=\
 '[-F | --follow-git] [-u | --update-gitignore]' \
 	USAGE=\
-"creates a new '$GP_DIR' directory that is going to serve as the root
-directory for the remaining '$GP_EXECUTABLE' commands. When the -F /
---follow-git option is specified, the command will create the '$GP_DIR'
-directory next to the current Git repository root rather than inside the
-current working directory.  When the -u / --update-gitignore option is
-specified, an entry for the '$GP_DIR' directory will be added to the
-'.gitignore' file."
+"creates a new '$GP_DIR' directory in the current working directory. This
+directory is going to serve as a container for any Git-parallel repositories
+created afterwards.  The remaining '$GP_EXECUTABLE' commands will operate with
+the '$GP_DIR' directory in the nearest parent directory containing one. If none
+exists, the commands will issue an error.
+
+When the -F / --follow-git option is specified, the '$GP_DIR' directory will be
+created next to the current Git repository root rather than inside the current
+working directory. When the -u / --update-gitignore option is specified, an
+entry for the '$GP_DIR' directory will be added to the '.gitignore' file."
 
 init() {
 	local FOLLOW_GIT=false
