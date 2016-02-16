@@ -562,7 +562,7 @@ newSubcommand   \
 	NAMES=ls,list \
 	LOCK=shared   \
 	SYNOPSIS=\
-'[[-p | --porcelain] | [-H | --human-readable] | [-a | --active]]' \
+'[{-p | --porcelain} | {-H | --human-readable} | {-a | --active}]' \
 	USAGE=\
 "lists the available Git-parallel repositories. When the -p / --porcelain
 option is specified or when the output of the command gets piped outside the
@@ -941,7 +941,7 @@ newSubcommand       \
 	NAMES=co,checkout \
 	LOCK=exclusive    \
 	SYNOPSIS=\
-'[-c | --create] [-m | --migrate] [-C | --clobber] REPO' \
+'[{-c | --create} [-m | --migrate]] [-C | --clobber] REPO' \
 	USAGE=\
 "switches to the specified Git-parallel REPOsitory. When the -c / --create
 option is specified, an equivalent of the '$GP_EXECUTABLE create' command is
