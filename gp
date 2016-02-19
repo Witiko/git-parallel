@@ -265,16 +265,16 @@ isCompatible() {
 			return 0
 		else
 			errcat <<-EOF
-The version of the Git-parallel repository in directory '$PWD' ($REPOVERSION)
-is incompatible with the current version of the program ($VERSION). In order to
+The version of the Git-parallel repository in directory '$PWD' (<2.0.0) is
+incompatible with the current version of the program ($VERSION). In order to
 work with the repository, update the program.
 			EOF
 			return 1
 		fi
 	else
 		errcat <<-EOF
-The version of the Git-parallel repository in directory '$PWD' ($REPOVERSION)
-is incompatible with the current version of the program ($VERSION). Run
+The version of the Git-parallel repository in directory '$PWD' (<2.0.0) is
+incompatible with the current version of the program ($VERSION). Run
 '$GP_EXECUTABLE upgrade' to bring the repository up to date.
 		EOF
 		return 2
