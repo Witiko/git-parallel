@@ -748,7 +748,10 @@ checkout_create_migrate() {
 TESTS+=(checkout_empty)
 checkout_empty() {
 	./gp init
-	./gp checkout --create && return 1
+	./gp checkout --create abc || return 1
+	[[ -d .git && -L .gitparallel/abc ]] || return 2
+	./gp checkout || return 3
+	[[ ! -d .git && -d .gitparallel/abc ]] || return 4
 	return 0
 }
 

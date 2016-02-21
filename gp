@@ -193,7 +193,7 @@ EOF
 }
 
 # Print the version information.
-VERSION=2.0.2
+VERSION=2.1.0
 version() {
 	wrap <<<"Git-parallel version $VERSION"
 	wrap <<<"Copyright © 2016 Vít Novotný"
@@ -944,13 +944,16 @@ newSubcommand       \
 	NAMES=co,checkout \
 	LOCK=exclusive    \
 	SYNOPSIS=\
-'[{-c | --create} [-m | --migrate]] [-C | --clobber] REPO' \
+'[[{-c | --create} [-m | --migrate]] [-C | --clobber] REPO]' \
 	USAGE=\
 "switches to the specified Git-parallel REPOsitory. When the -c / --create
 option is specified, an equivalent of the '$GP_EXECUTABLE create' command is
 performed beforehand. If there exists a '.git' directory that is not a symlink
 to '$GP_DIR' and that would therefore be overriden by the switch, the -C /
---clobber or the -m / migrate option is required."
+--clobber or the -m / migrate option is required.
+
+When no Git-parallel REPOsitories are specified, the active Git-parallel
+repository is deactivated (pulled back into the '$GP_DIR' directory)."
 
 checkout() {
 	local REPO=
@@ -981,8 +984,11 @@ checkout() {
 
 	# Guard against bad input.
 	jumpToRoot $GP_DIR || return 3
-	[[ -z $REPO ]] && error 'No Git-parallel repository was specified.' && return 4
-	if [[ ! -d $GP_DIR/$REPO ]] && ! $CREATE; then
+	if [[ -z "$REPO" ]] && $CREATE; then
+    error 'No Git-parallel repository name was specified.'
+    return 4
+  fi
+	if [[ ! -z "$REPO" && ! -d $GP_DIR/$REPO ]] && ! $CREATE; then
 		errcat <<-EOF
 The Git-parallel repository '$REPO' does not exist in '$PWD'. Specify the -c /
 --create option to create the repository.
@@ -991,8 +997,8 @@ The Git-parallel repository '$REPO' does not exist in '$PWD'. Specify the -c /
 	fi
 
 	# Guard against dubious input.
-	local ACTIVE
-	if { [[ -d .git ]] && ! ACTIVE=`list --active 2>/dev/null`; } &&
+	local ACTIVE=`list --active 2>/dev/null`
+	if [[ ! -z "$REPO" && -d .git && -z "$ACTIVE" ]] &&
 	! { $CLOBBER || { $CREATE && $MIGRATE; }; }; then
 		errcat <<-'EOF'
 There exists an active Git repository that is not a symlink to a Git-parallel
@@ -1005,7 +1011,11 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 
 	# Guard against harmless input.
 	if ! $CREATE && [[ $REPO = $ACTIVE ]]; then
-		info "The Git-parallel repository '%s' is already active." $REPO
+    if [[ -z "$REPO" ]]; then
+		  info "There is no Git-parallel repository to deactivate." $REPO
+    else
+		  info "The Git-parallel repository '%s' is already active." $REPO
+    fi
 		return 0
 	fi
 
@@ -1015,20 +1025,28 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 		(cd "$OLDPWD" &&
 		create `$MIGRATE && printf '%s\n' --migrate` $REPO) || return 7
 	fi
-	if ! [[ -z "$ACTIVE" ]]; then
+
+	if [[ ! -z "$ACTIVE" ]]; then
 		rm $GP_DIR/$ACTIVE &&
 		mv -T .git $GP_DIR/$ACTIVE || return 8
 	else
 		rm -rf .git || return 9
 	fi
-	mv -T $GP_DIR/$REPO .git &&
-	(cd $GP_DIR && ln -s ../.git $REPO) || return 10
+
+  if [[ ! -z "$REPO" ]]; then
+  	mv -T $GP_DIR/$REPO .git &&
+	  (cd $GP_DIR && ln -s ../.git $REPO) || return 10
+  fi
 
 	# Print additional information.
 	if $CREATE; then
 		info "Switched to a new Git-parallel repository '%s'." $REPO
 	else
-		info "Switched to the Git-parallel repository '%s'." $REPO
+    if [[ -z "$REPO" ]]; then
+      info "Deactivated the Git-parallel repository '%s'." $ACTIVE
+    else
+  		info "Switched to the Git-parallel repository '%s'." $REPO
+    fi
 	fi
 }
 
