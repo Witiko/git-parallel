@@ -46,8 +46,8 @@ wrap() {
 VERBOSE=true
 error() { printf -- "$1\n" "${@:2}" | wrap 1>&2; }
 errcat() { wrap 1>&2; }
-info() { $VERBOSE && error "${@}"; }
-infocat() { $VERBOSE && errcat; }
+info() { ! $VERBOSE || error "${@}"; }
+infocat() { ! $VERBOSE || errcat; }
 
 # The main routine.
 [[ -v GP_EXECUTABLE ]] || GP_EXECUTABLE="${0##*/}"
@@ -193,7 +193,7 @@ EOF
 }
 
 # Print the version information.
-VERSION=2.1.0
+VERSION=2.1.1
 version() {
 	wrap <<<"Git-parallel version $VERSION"
 	wrap <<<"Copyright © 2016 Vít Novotný"
@@ -985,9 +985,9 @@ checkout() {
 	# Guard against bad input.
 	jumpToRoot $GP_DIR || return 3
 	if [[ -z "$REPO" ]] && $CREATE; then
-    error 'No Git-parallel repository name was specified.'
-    return 4
-  fi
+		error 'No Git-parallel repository name was specified.'
+		return 4
+	fi
 	if [[ ! -z "$REPO" && ! -d $GP_DIR/$REPO ]] && ! $CREATE; then
 		errcat <<-EOF
 The Git-parallel repository '$REPO' does not exist in '$PWD'. Specify the -c /
@@ -1011,11 +1011,11 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 
 	# Guard against harmless input.
 	if ! $CREATE && [[ $REPO = $ACTIVE ]]; then
-    if [[ -z "$REPO" ]]; then
-		  info "There is no Git-parallel repository to deactivate." $REPO
-    else
-		  info "The Git-parallel repository '%s' is already active." $REPO
-    fi
+		if [[ -z "$REPO" ]]; then
+			info "There is no Git-parallel repository to deactivate." $REPO
+		else
+			info "The Git-parallel repository '%s' is already active." $REPO
+		fi
 		return 0
 	fi
 
@@ -1033,20 +1033,20 @@ your active Git repository WILL BE LOST! To approve the removal, specify the -C
 		rm -rf .git || return 9
 	fi
 
-  if [[ ! -z "$REPO" ]]; then
-  	mv -T $GP_DIR/$REPO .git &&
-	  (cd $GP_DIR && ln -s ../.git $REPO) || return 10
-  fi
+	if [[ ! -z "$REPO" ]]; then
+		mv -T $GP_DIR/$REPO .git &&
+		(cd $GP_DIR && ln -s ../.git $REPO) || return 10
+	fi
 
 	# Print additional information.
 	if $CREATE; then
 		info "Switched to a new Git-parallel repository '%s'." $REPO
 	else
-    if [[ -z "$REPO" ]]; then
-      info "Deactivated the Git-parallel repository '%s'." $ACTIVE
-    else
-  		info "Switched to the Git-parallel repository '%s'." $REPO
-    fi
+		if [[ -z "$REPO" ]]; then
+			info "Deactivated the Git-parallel repository '%s'." $ACTIVE
+		else
+			info "Switched to the Git-parallel repository '%s'." $REPO
+		fi
 	fi
 }
 

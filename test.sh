@@ -7,7 +7,7 @@ TESTS=()
 TESTS+=(init)
 init() {
 	[[ -d .gitparallel ]] && return 1
-	./gp init || return 2
+	$GP init || return 2
 	[[ -d .gitparallel ]] || return 3
 	return 0
 }
@@ -16,7 +16,7 @@ init() {
 TESTS+=(init_alias)
 init_alias() {
 	[[ -d .gitparallel ]] && return 1
-	./gp i || return 2
+	$GP i || return 2
 	[[ -d .gitparallel ]] || return 3
 	return 0
 }
@@ -27,14 +27,14 @@ init_follow_git() {
 	mkdir -p .git foo bar/.git bar/baz || return 1
 	cd foo || return 2
 	[[ -d .gitparallel ]] && return 3
-	../gp init || return 4
+	.$GP init || return 4
 	[[ -d .gitparallel ]] || return 5
 	[[ -d ../.gitparallel ]] && return 6
-	../gp init --follow-git || return 7
+	.$GP init --follow-git || return 7
 	[[ -d ../.gitparallel ]] || return 8
 	cd ../bar/baz || return 9
 	[[ -d ../.gitparallel ]] && return 10
-	../../gp init -F || return 11
+	../.$GP init -F || return 11
 	[[ -d ../.gitparallel ]] || return 12
 	return 0
 }
@@ -43,14 +43,14 @@ init_follow_git() {
 TESTS+=(init_update_gitignore)
 init_update_gitignore() {
 	[[ -e .gitignore ]] && return 1
-	./gp init --update-gitignore || return 2
+	$GP init --update-gitignore || return 2
 	[[ -e .gitignore ]] || return 3
 	[[ `grep '^\.gitparallel' <.gitignore | wc -l` = 1 ]] || return 4
 	mkdir -p foo/bar foo/.git || return 5
 	cd foo/bar || return 6
 	[[ -e ../.gitignore ]] && return 7
 	printf '.gitparallel\n' >../.gitignore
-	../../gp init --follow-git -u || return 8
+	../.$GP init --follow-git -u || return 8
 	[[ -e ../.gitignore ]] || return 9
 	[[ `grep '^\.gitparallel' <../.gitignore | wc -l` = 1 ]] || return 4
 	return 0
@@ -62,7 +62,7 @@ init_update_gitignore_unnecessary() {
 	[[ -e .gitignore ]] && return 1
 	printf '.gitparallel\n' >.gitignore || return 2
 	[[ "`wc -l <.gitignore`" = 1 ]] || return 3
-	./gp init --update-gitignore || return 4
+	$GP init --update-gitignore || return 4
 	[[ "`wc -l <.gitignore`" = 1 ]] || return 5
 	return 0
 }
@@ -70,7 +70,7 @@ init_update_gitignore_unnecessary() {
 ### Test the correct handling of bogus input.
 TESTS+=(init_bogus)
 init_bogus() {
-	./gp init bogus && return 1
+	$GP init bogus && return 1
 	return 0
 }
 
@@ -78,13 +78,13 @@ init_bogus() {
 ### Test the basic functionality of the command.
 TESTS+=(create)
 create() {
-	./gp init
+	$GP init
 	[[ "`ls .gitparallel | wc -l`" = 0 ]] || return 1
-	./gp create a b c || return 2
+	$GP create a b c || return 2
 	[[ "`ls .gitparallel | wc -l`" = 3 ]] || return 3
-	./gp create a b c && return 4
+	$GP create a b c && return 4
 	[[ "`ls .gitparallel | wc -l`" = 3 ]] || return 5
-	./gp create d e f || return 6
+	$GP create d e f || return 6
 	[[ "`ls .gitparallel | wc -l`" = 6 ]] || return 7
 	return 0
 }
@@ -93,7 +93,7 @@ create() {
 TESTS+=(create_noinit)
 create_noinit() {
 	[[ ! -d .gitparallel ]] || return 1
-	./gp create a b c && return 2
+	$GP create a b c && return 2
 	[[ ! -d .gitparallel ]] || return 3
 	return 0
 }
@@ -101,8 +101,8 @@ create_noinit() {
 ### Test the correct handling of --.
 TESTS+=(create_dbldash)
 create_dbldash() {
-	./gp init
-	./gp create a b c -- d e || return 1
+	$GP init
+	$GP create a b c -- d e || return 1
 	[[ "`ls .gitparallel | wc -l`" = 5 ]] || return 2
 	return 0
 }
@@ -110,56 +110,56 @@ create_dbldash() {
 ### Test the correct handling of empty input.
 TESTS+=(create_empty)
 create_empty() {
-	./gp init
-	./gp create && return 1
+	$GP init
+	$GP create && return 1
 	return 0
 }
 
 ### Test the correct handling of the command alias.
 TESTS+=(create_alias)
 create_alias() {
-	./gp init
-	./gp cr a b c
+	$GP init
+	$GP cr a b c
 }
 
 ### Test the correct handling of the -m / --migrate option.
 TESTS+=(create_migrate)
 create_migrate() {
-	./gp init
-	./gp create -m a b c && return 1
-	./gp create --migrate a b c && return 2
+	$GP init
+	$GP create -m a b c && return 1
+	$GP create --migrate a b c && return 2
 	mkdir .git foo || return 3
 	touch .git/foobar || return 4
 	cd foo || return 5
-	../gp init || return 6
-	../gp create -m a b c || return 7
+	.$GP init || return 6
+	.$GP create -m a b c || return 7
 	[[ -e .gitparallel/a/foobar ]] || return 8
 	[[ -e .gitparallel/b/foobar ]] || return 9
 	[[ -e .gitparallel/c/foobar ]] || return 10
-	../gp create --migrate a b c && return 11
-	../gp create --migrate d e f || return 12
+	.$GP create --migrate a b c && return 11
+	.$GP create --migrate d e f || return 12
 	[[ -e .gitparallel/d/foobar ]] || return 13
 	[[ -e .gitparallel/e/foobar ]] || return 14
 	[[ -e .gitparallel/f/foobar ]] || return 15
-	../gp create -m d e f && return 16
+	.$GP create -m d e f && return 16
 	return 0
 }
 
 ### Test the correct handling of illegal project names.
 TESTS+=(create_checkNames)
 create_checkNames() {
-	./gp init
-	./gp create a b c '' && return 1
-	./gp create a b/c && return 2
-	./gp create 'a
+	$GP init
+	$GP create a b c '' && return 1
+	$GP create a b/c && return 2
+	$GP create 'a
 	             b' c d && return 3
-	./gp create . b c d && return 4
-	./gp create a. b c || return 5
-	{ rm -rf .gitparallel && ./gp init; } || return 6
-	./gp create a b --bogus d && return 7
-	./gp create a b bo-gus d || return 8
-	./gp create a b 'c d' && return 9
-	./gp create a b 'c	d' && return 10
+	$GP create . b c d && return 4
+	$GP create a. b c || return 5
+	{ rm -rf .gitparallel && $GP init; } || return 6
+	$GP create a b --bogus d && return 7
+	$GP create a b bo-gus d || return 8
+	$GP create a b 'c d' && return 9
+	$GP create a b 'c	d' && return 10
 	return 0
 }
 
@@ -167,9 +167,9 @@ create_checkNames() {
 ### Test the basic functionality of the command.
 TESTS+=(copy)
 copy() {
-	./gp init
-	./gp create a || return 1
-	./gp copy a b || return 2
+	$GP init
+	$GP create a || return 1
+	$GP copy a b || return 2
 	[[ -d .gitparallel/a ]] || return 3
 	[[ -d .gitparallel/b ]] || return 4
 	return 0
@@ -178,19 +178,19 @@ copy() {
 ### Test that the command fails without `init`.
 TESTS+=(copy_noinit)
 copy_noinit() {
-	./gp init
-	./gp create a || return 1
+	$GP init
+	$GP create a || return 1
 	rm -r .gitparallel || return 2
-	./gp copy a b && return 3
+	$GP copy a b && return 3
 	return 0
 }
 
 ### Test the correct handling of --.
 TESTS+=(copy_dbldash)
 copy_dbldash() {
-	./gp init
-	./gp create a || return 1
-	./gp copy a -- b || return 2
+	$GP init
+	$GP create a || return 1
+	$GP copy a -- b || return 2
 	[[ -d .gitparallel/a ]] || return 3
 	[[ -d .gitparallel/b ]] || return 4
 	return 0
@@ -199,17 +199,17 @@ copy_dbldash() {
 ### Test the correct handling of empty input.
 TESTS+=(copy_empty)
 copy_empty() {
-	./gp init
-	./gp copy && return 1
+	$GP init
+	$GP copy && return 1
 	return 0
 }
 
 ### Test the correct handling of non-existent source directory.
 TESTS+=(copy_bad_source)
 copy_bad_source() {
-	./gp init
-	./gp create a || return 1
-	./gp copy b c && return 2
+	$GP init
+	$GP create a || return 1
+	$GP copy b c && return 2
 	[[ -d .gitparallel/a ]] || return 3
 	[[ -d .gitparallel/b ]] && return 4
 	[[ -d .gitparallel/c ]] && return 5
@@ -219,9 +219,9 @@ copy_bad_source() {
 ### Test the correct handling of extraneous input.
 TESTS+=(copy_extra)
 copy_extra() {
-	./gp init
-	./gp create a || return 1
-	./gp copy a b c || return 2
+	$GP init
+	$GP create a || return 1
+	$GP copy a b c || return 2
 	[[ -d .gitparallel/a ]] || return 3
 	[[ -d .gitparallel/b ]] || return 4
 	[[ -d .gitparallel/c ]] || return 5
@@ -231,9 +231,9 @@ copy_extra() {
 ### Test the correct handling of the command alias.
 TESTS+=(copy_alias)
 copy_alias() {
-	./gp init
-	./gp create a || return 1
-	./gp cp a b || return 2
+	$GP init
+	$GP create a || return 1
+	$GP cp a b || return 2
 	[[ -d .gitparallel/a ]] || return 3
 	[[ -d .gitparallel/b ]] || return 4
 	return 0
@@ -242,18 +242,18 @@ copy_alias() {
 ### Test the correct handling of illegal project names.
 TESTS+=(copy_checkNames)
 copy_checkNames() {
-	./gp init
-	./gp create a || return 1
-	./gp copy a '' && return 2
-	./gp copy a b/c && return 3
-	./gp copy a 'a
+	$GP init
+	$GP create a || return 1
+	$GP copy a '' && return 2
+	$GP copy a b/c && return 3
+	$GP copy a 'a
 	             b' && return 4
-	./gp copy a . && return 5
-	./gp copy a a. || return 6
-	./gp copy a. --bogus && return 7
-	./gp copy a. bo-gus || return 8
-	./gp copy bo-gus 'c d' && return 9
-	./gp copy bo-gus 'c	d' && return 10
+	$GP copy a . && return 5
+	$GP copy a a. || return 6
+	$GP copy a. --bogus && return 7
+	$GP copy a. bo-gus || return 8
+	$GP copy bo-gus 'c d' && return 9
+	$GP copy bo-gus 'c	d' && return 10
 	[[ -d .gitparallel/bo-gus ]] || return 11
 	return 0
 }
@@ -261,18 +261,18 @@ copy_checkNames() {
 ### Test the inferrence capabilities of the command.
 TESTS+=(copy_infer)
 copy_infer() {
-	./gp init
-	./gp create a || return 1
+	$GP init
+	$GP create a || return 1
 	mv -T .gitparallel/a .git || return 2
 	cd .gitparallel || return 3
 	ln -s ../.git a || return 4
 	cd .. || return 5
-	./gp copy b || return 6
+	$GP copy b || return 6
 	[[ -d .gitparallel/a ]] || return 7
 	[[ -d .gitparallel/b ]] || return 8
 	rm -r .gitparallel/a || return 9
 	mv -T .git .gitparallel/a || return 10
-	./gp copy c && return 11
+	$GP copy c && return 11
 	[[ -d .gitparallel/a ]] || return 12
 	[[ -d .gitparallel/b ]] || return 13
 	[[ -d .gitparallel/c ]] && return 14
@@ -282,19 +282,19 @@ copy_infer() {
 ### Test the correct handling of copying a repo to itself.
 TESTS+=(copy_toself)
 copy_toself() {
-	./gp init
-	./gp create a || return 1
-	./gp copy a && return 2
-	./gp copy a a && return 3
+	$GP init
+	$GP create a || return 1
+	$GP copy a && return 2
+	$GP copy a a && return 3
 	return 0
 }
 
 ### Test the correct handling of specifying duplicate repos.
 TESTS+=(copy_duplicates)
 copy_duplicates() {
-	./gp init
-	./gp create a || return 1
-	./gp copy a b b c c b c || return 2
+	$GP init
+	$GP create a || return 1
+	$GP copy a b b c c b c || return 2
 	[[ -d .gitparallel/a ]] || return 3
 	[[ -d .gitparallel/b ]] || return 4
 	[[ -d .gitparallel/c ]] || return 5
@@ -304,23 +304,23 @@ copy_duplicates() {
 ### Test the correct handling of the -C / --clobber option.
 TESTS+=(copy_clobber)
 copy_clobber() {
-	./gp init
-	./gp create a b c || return 1
+	$GP init
+	$GP create a b c || return 1
 	touch .gitparallel/a/fileA
 	touch .gitparallel/b/fileB
-	./gp copy a b && return 2
+	$GP copy a b && return 2
 	[[ -e .gitparallel/a/fileA ]] || return 3
 	[[ -e .gitparallel/a/fileB ]] && return 4
 	[[ -e .gitparallel/b/fileA ]] && return 5
 	[[ -e .gitparallel/b/fileB ]] || return 6
 	[[ -d .gitparallel/c ]] || return 7
-	./gp copy --clobber a b || return 8
+	$GP copy --clobber a b || return 8
 	[[ -e .gitparallel/a/fileA ]] || return 9
 	[[ -e .gitparallel/a/fileB ]] && return 10
 	[[ -e .gitparallel/b/fileA ]] || return 11
 	[[ -e .gitparallel/b/fileB ]] && return 12
 	[[ -d .gitparallel/c ]] || return 13
-	./gp copy -C b c || return 14
+	$GP copy -C b c || return 14
 	[[ -e .gitparallel/a/fileA ]] || return 15
 	[[ -e .gitparallel/a/fileB ]] && return 16
 	[[ -e .gitparallel/b/fileA ]] || return 17
@@ -334,9 +334,9 @@ copy_clobber() {
 ### Test the basic functionality of the command.
 TESTS+=(move)
 move() {
-	./gp init
-	./gp create a || return 1
-	./gp move a b || return 2
+	$GP init
+	$GP create a || return 1
+	$GP move a b || return 2
 	[[ -d .gitparallel/a ]] && return 3
 	[[ -d .gitparallel/b ]] || return 4
 	return 0
@@ -345,19 +345,19 @@ move() {
 ### Test that the command fails without `init`.
 TESTS+=(move_noinit)
 move_noinit() {
-	./gp init
-	./gp create a || return 1
+	$GP init
+	$GP create a || return 1
 	rm -r .gitparallel || return 2
-	./gp move a b && return 3
+	$GP move a b && return 3
 	return 0
 }
 
 ### Test the correct handling of --.
 TESTS+=(move_dbldash)
 move_dbldash() {
-	./gp init
-	./gp create a || return 1
-	./gp move a -- b || return 2
+	$GP init
+	$GP create a || return 1
+	$GP move a -- b || return 2
 	[[ -d .gitparallel/a ]] && return 3
 	[[ -d .gitparallel/b ]] || return 4
 	return 0
@@ -366,17 +366,17 @@ move_dbldash() {
 ### Test the correct handling of empty input.
 TESTS+=(move_empty)
 move_empty() {
-	./gp init
-	./gp move && return 1
+	$GP init
+	$GP move && return 1
 	return 0
 }
 
 ### Test the correct handling of non-existent source directory.
 TESTS+=(move_bad_source)
 move_bad_source() {
-	./gp init
-	./gp create a || return 1
-	./gp move b c && return 2
+	$GP init
+	$GP create a || return 1
+	$GP move b c && return 2
 	[[ -d .gitparallel/a ]] || return 3
 	[[ -d .gitparallel/b ]] && return 4
 	[[ -d .gitparallel/c ]] && return 5
@@ -386,9 +386,9 @@ move_bad_source() {
 ### Test the correct handling of extraneous input.
 TESTS+=(move_extra)
 move_extra() {
-	./gp init
-	./gp create a || return 1
-	./gp move a b c && return 2
+	$GP init
+	$GP create a || return 1
+	$GP move a b c && return 2
 	[[ -d .gitparallel/a ]] || return 3
 	[[ -d .gitparallel/b ]] && return 4
 	[[ -d .gitparallel/c ]] && return 5
@@ -398,9 +398,9 @@ move_extra() {
 ### Test the correct handling of the command alias.
 TESTS+=(move_alias_mv)
 move_alias_mv() {
-	./gp init
-	./gp create a || return 1
-	./gp mv a b || return 2
+	$GP init
+	$GP create a || return 1
+	$GP mv a b || return 2
 	[[ -d .gitparallel/a ]] && return 3
 	[[ -d .gitparallel/b ]] || return 4
 	return 0
@@ -409,9 +409,9 @@ move_alias_mv() {
 ### Test the correct handling of the command alias.
 TESTS+=(move_alias_rename)
 move_alias_rename() {
-	./gp init
-	./gp create a || return 1
-	./gp rename a b || return 2
+	$GP init
+	$GP create a || return 1
+	$GP rename a b || return 2
 	[[ -d .gitparallel/a ]] && return 3
 	[[ -d .gitparallel/b ]] || return 4
 	return 0
@@ -420,18 +420,18 @@ move_alias_rename() {
 ### Test the correct handling of illegal project names.
 TESTS+=(move_checkNames)
 move_checkNames() {
-	./gp init
-	./gp create a || return 1
-	./gp move a '' && return 2
-	./gp move a b/c && return 3
-	./gp move a 'a
+	$GP init
+	$GP create a || return 1
+	$GP move a '' && return 2
+	$GP move a b/c && return 3
+	$GP move a 'a
 	             b' && return 4
-	./gp move a . && return 5
-	./gp move a a. || return 6
-	./gp move a. --bogus && return 7
-	./gp move a. bo-gus || return 8
-	./gp move bo-gus 'c d' && return 9
-	./gp move bo-gus 'c	d' && return 10
+	$GP move a . && return 5
+	$GP move a a. || return 6
+	$GP move a. --bogus && return 7
+	$GP move a. bo-gus || return 8
+	$GP move bo-gus 'c d' && return 9
+	$GP move bo-gus 'c	d' && return 10
 	[[ -d .gitparallel/bo-gus ]] || return 11
 	return 0
 }
@@ -439,18 +439,18 @@ move_checkNames() {
 ### Test the inferrence capabilities of the command.
 TESTS+=(move_infer)
 move_infer() {
-	./gp init
-	./gp create a || return 1
+	$GP init
+	$GP create a || return 1
 	mv -T .gitparallel/a .git || return 2
 	cd .gitparallel || return 3
 	ln -s ../.git a || return 4
 	cd .. || return 5
-	./gp move b || return 6
+	$GP move b || return 6
 	[[ -d .gitparallel/a ]] && return 7
 	[[ -d .gitparallel/b ]] || return 8
 	rm -r .gitparallel/b || return 9
 	mv -T .git .gitparallel/b || return 10
-	./gp move c && return 11
+	$GP move c && return 11
 	[[ -d .gitparallel/a ]] && return 12
 	[[ -d .gitparallel/b ]] || return 13
 	[[ -d .gitparallel/c ]] && return 14
@@ -460,25 +460,25 @@ move_infer() {
 ### Test the correct handling of moving a repo to itself.
 TESTS+=(move_toself)
 move_toself() {
-	./gp init
-	./gp create a || return 1
-	./gp move a && return 2
-	./gp move a a && return 3
+	$GP init
+	$GP create a || return 1
+	$GP move a && return 2
+	$GP move a a && return 3
 	return 0
 }
 
 ### Test the correct handling of the -C / --clobber option.
 TESTS+=(move_clobber)
 move_clobber() {
-	./gp init
-	./gp create a b c || return 1
+	$GP init
+	$GP create a b c || return 1
 	touch .gitparallel/a/test || return 2
-	./gp move a b && return 3
-	./gp move --clobber a b || return 4
+	$GP move a b && return 3
+	$GP move --clobber a b || return 4
 	[[ -d .gitparallel/a ]] && return 5
 	[[ -e .gitparallel/b/test ]] || return 6
 	[[ -e .gitparallel/c/test ]] && return 7
-	./gp move -C b c || return 8
+	$GP move -C b c || return 8
 	[[ -d .gitparallel/a ]] && return 9
 	[[ -d .gitparallel/b ]] && return 10
 	[[ -e .gitparallel/c/test ]] || return 11
@@ -489,15 +489,15 @@ move_clobber() {
 ### Test the basic functionality of the command.
 TESTS+=(remove)
 remove() {
-	./gp init
+	$GP init
 	[[ "`ls .gitparallel | wc -l`" = 0 ]] || return 1
-	./gp create a b c || return 2
+	$GP create a b c || return 2
 	[[ "`ls .gitparallel | wc -l`" = 3 ]] || return 3
-	./gp create d e f || return 4
+	$GP create d e f || return 4
 	[[ "`ls .gitparallel | wc -l`" = 6 ]] || return 5
-	./gp remove a c e || return 6
+	$GP remove a c e || return 6
 	[[ "`ls .gitparallel | wc -l`" = 3 ]] || return 7
-	./gp remove b d f || return 8
+	$GP remove b d f || return 8
 	[[ "`ls .gitparallel | wc -l`" = 0 ]] || return 9
 	return 0
 }
@@ -505,12 +505,12 @@ remove() {
 ### Test that the command fails without `init`.
 TESTS+=(remove_noinit)
 remove_noinit() {
-	./gp init
+	$GP init
 	[[ "`ls .gitparallel | wc -l`" = 0 ]] || return 1
-	./gp create a b c || return 2
+	$GP create a b c || return 2
 	[[ "`ls .gitparallel | wc -l`" = 3 ]] || return 3
 	rmdir .gitparallel
-	./gp remove a c e && return 4
+	$GP remove a c e && return 4
 	[[ "`ls .gitparallel | wc -l`" = 3 ]] || return 5
 	return 0
 }
@@ -518,10 +518,10 @@ remove_noinit() {
 ### Test the correct handling of --.
 TESTS+=(remove_dbldash)
 remove_dbldash() {
-	./gp init
-	./gp create a b c -- d e || return 1
+	$GP init
+	$GP create a b c -- d e || return 1
 	[[ "`ls .gitparallel | wc -l`" = 5 ]] || return 2
-	./gp remove a b c -- d e || return 3
+	$GP remove a b c -- d e || return 3
 	[[ "`ls .gitparallel | wc -l`" = 0 ]] || return 4
 	return 0
 }
@@ -529,46 +529,46 @@ remove_dbldash() {
 ### Test the correct handling of empty input.
 TESTS+=(remove_empty)
 remove_empty() {
-	./gp init
-	./gp remove && return 1
+	$GP init
+	$GP remove && return 1
 	return 0
 }
 
 ### Test the correct handling of the command alias.
 TESTS+=(remove_alias)
 remove_alias() {
-	./gp init
-	./gp rm a && return 1
-	./gp create a || return 2
-	./gp rm a || return 3
+	$GP init
+	$GP rm a && return 1
+	$GP create a || return 2
+	$GP rm a || return 3
 	return 0
 }
 
 ### Test the correct handling of the -f / --force option.
 TESTS+=(remove_force)
 remove_force() {
-	./gp init
-	./gp create a b || return 1
+	$GP init
+	$GP create a b || return 1
 	mv -T .gitparallel/a .git || return 2
 	cd .gitparallel || return 3
 	ln -s ../.git a || return 4
 	cd .. || return 5
-	./gp remove a && return 6
-	./gp remove -f a || return 7
+	$GP remove a && return 6
+	$GP remove -f a || return 7
 	mv -T .gitparallel/b .git || return 8
 	cd .gitparallel || return 9
 	ln -s ../.git b || return 10
 	cd .. || return 11
-	./gp remove b && return 12
-	./gp remove --force b || return 13
+	$GP remove b && return 12
+	$GP remove --force b || return 13
 	return 0
 }
 
 ### Test the correct handling of illegal project names.
 TESTS+=(remove_checkNames)
 remove_checkNames() {
-	./gp init
-	./gp remove '' && return 1
+	$GP init
+	$GP remove '' && return 1
 	return 0
 }
 
@@ -576,39 +576,39 @@ remove_checkNames() {
 ### Test the basic functionality of the command.
 TESTS+=(list)
 list() {
-	./gp init
-	[[ "`./gp list | wc -l`" = 0 ]] || return 1
-	./gp create a b c || return 2
-	[[ "`./gp list | wc -l`" = 3 ]] || return 3
-	./gp create d e f || return 4
-	[[ "`./gp list | wc -l`" = 6 ]] || return 5
-	./gp remove a c e || return 6
-	[[ "`./gp list | wc -l`" = 3 ]] || return 7
-	./gp remove b d f || return 8
-	[[ "`./gp list | wc -l`" = 0 ]] || return 9
+	$GP init
+	[[ "`$GP list | wc -l`" = 0 ]] || return 1
+	$GP create a b c || return 2
+	[[ "`$GP list | wc -l`" = 3 ]] || return 3
+	$GP create d e f || return 4
+	[[ "`$GP list | wc -l`" = 6 ]] || return 5
+	$GP remove a c e || return 6
+	[[ "`$GP list | wc -l`" = 3 ]] || return 7
+	$GP remove b d f || return 8
+	[[ "`$GP list | wc -l`" = 0 ]] || return 9
 	return 0
 }
 
 ### Test that the command fails without `init`.
 TESTS+=(list_noinit)
 list_noinit() {
-	./gp list && return 1
+	$GP list && return 1
 	return 0
 }
 
 ### Test the correct handling of bogus input.
 TESTS+=(list_bogus)
 list_bogus() {
-	./gp init
-	./gp bogus && return 1
+	$GP init
+	$GP bogus && return 1
 	return 0
 }
 
 ### Test the correct handling of the command alias.
 TESTS+=(list_alias)
 list_alias() {
-	./gp init
-	./gp ls || return 1
+	$GP init
+	$GP ls || return 1
 	return 0
 }
 
@@ -616,45 +616,45 @@ list_alias() {
 ### options.
 TESTS+=(list_porcelain)
 list_porcelain() {
-	./gp init
-	./gp create a b c || return 1
-	./gp list -H | grep -q '^\* ' && return 2
-	./gp list --human-readable | grep -q '^\* ' && return 3
-	./gp list -p | grep -q '^\* ' && return 4
-	./gp list --porcelain | grep -q '^ \*' && return 5
+	$GP init
+	$GP create a b c || return 1
+	$GP list -H | grep -q '^\* ' && return 2
+	$GP list --human-readable | grep -q '^\* ' && return 3
+	$GP list -p | grep -q '^\* ' && return 4
+	$GP list --porcelain | grep -q '^ \*' && return 5
 	mv -T .gitparallel/a .git || return 6
 	cd .gitparallel || return 7
 	ln -s ../.git a || return 8
 	cd .. || return 9
-	./gp list -H | grep -q '^\* ' || return 10
-	./gp list --human-readable | grep -q '^\* ' || return 11
-	./gp list -p | grep -q '^\* ' && return 12
-	./gp list --porcelain | grep -q '^ \*' && return 13
+	$GP list -H | grep -q '^\* ' || return 10
+	$GP list --human-readable | grep -q '^\* ' || return 11
+	$GP list -p | grep -q '^\* ' && return 12
+	$GP list --porcelain | grep -q '^ \*' && return 13
 	return 0
 }
 
 ### Test the correct handline of the -a / --active options.
 TESTS+=(list_active)
 list_active() {
-	./gp init
+	$GP init
 
-	./gp list --active && return 1
-	./gp list -a && return 2
-	[[ -z "`./gp list --active`" ]] || return 3
-	[[ -z "`./gp list -a`" ]] || return 4
+	$GP list --active && return 1
+	$GP list -a && return 2
+	[[ -z "`$GP list --active`" ]] || return 3
+	[[ -z "`$GP list -a`" ]] || return 4
 
-	./gp create a || return 5
-	[[ -z "`./gp list --active`" ]] || return 6
-	[[ -z "`./gp list -a`" ]] || return 7
-	./gp list --active && return 8
-	./gp list -a && return 9
+	$GP create a || return 5
+	[[ -z "`$GP list --active`" ]] || return 6
+	[[ -z "`$GP list -a`" ]] || return 7
+	$GP list --active && return 8
+	$GP list -a && return 9
 
 	mv -T .gitparallel/a .git || return 10
 	(cd .gitparallel && ln -s ../.git a) || return 11
-	./gp list --active || return 12
-	./gp list -a || return 13
-	[[ "`./gp list --active`" = a ]] || return 14
-	[[ "`./gp list -a`" = a ]] || return 15
+	$GP list --active || return 12
+	$GP list -a || return 13
+	[[ "`$GP list --active`" = a ]] || return 14
+	[[ "`$GP list -a`" = a ]] || return 15
 
 	return 0
 }
@@ -662,15 +662,15 @@ list_active() {
 ### Test the correct handling of illegal project names.
 TESTS+=(list_checkNames)
 list_checkNames() {
-	./gp init
-	./gp create a b c d || return 1
+	$GP init
+	$GP create a b c d || return 1
 	mkdir -- .gitparallel/'a
 												 b' \
 					 .gitparallel/.a \
 					 .gitparallel/--bogus \
 					 .gitparallel/'c d' \
 					 .gitparallel/'c	d' || return 2
-	[[ `./gp list | wc -l` = 4 ]] || return 3
+	[[ `$GP list | wc -l` = 4 ]] || return 3
 	return 0
 }
 
@@ -678,79 +678,79 @@ list_checkNames() {
 ### Test the basic functionality of the command.
 TESTS+=(checkout)
 checkout() {
-	./gp init
-	./gp checkout a && return 1
-	./gp create a || return 2
-	./gp checkout a || return 3
-	./gp remove --force a || return 4
-	./gp checkout a && return 5
+	$GP init
+	$GP checkout a && return 1
+	$GP create a || return 2
+	$GP checkout a || return 3
+	$GP remove --force a || return 4
+	$GP checkout a && return 5
 	return 0
 }
 
 ### Test that the command fails without `init`.
 TESTS+=(checkout_noinit)
 checkout_noinit() {
-	./gp checkout a && return 1
-	./gp create a && return 2
-	./gp checkout a && return 3
+	$GP checkout a && return 1
+	$GP create a && return 2
+	$GP checkout a && return 3
 	return 0
 }
 
 ### Test the correct handling of the -C / --clobber option.
 TESTS+=(checkout_clobber)
 checkout_clobber() {
-	./gp init
-	./gp create a b || return 1
-	./gp checkout a || return 2
-	./gp checkout b || return 3
+	$GP init
+	$GP create a b || return 1
+	$GP checkout a || return 2
+	$GP checkout b || return 3
 	rm .gitparallel/b || return 4
 	mv -T .git .gitparallel/b || return 5
 	mkdir .git || return 6
-	./gp checkout a && return 7
-	./gp checkout --clobber a || return 8
+	$GP checkout a && return 7
+	$GP checkout --clobber a || return 8
 	rm .gitparallel/a || return 9
 	mv -T .git .gitparallel/a || return 10
 	mkdir .git || return 11
-	./gp checkout b && return 12
-	./gp checkout -C b || return 13
+	$GP checkout b && return 12
+	$GP checkout -C b || return 13
 	return 0
 }
 
 ### Test the correct handling of the -c / --create option.
 TESTS+=(checkout_create)
 checkout_create() {
-	./gp init
-	./gp checkout a && return 1
-	./gp checkout --create a || return 2
-	./gp checkout b && return 3
-	./gp checkout -c b || return 4
-	[[ "`./gp list | wc -l`" = 2 ]] || return 5
+	$GP init
+	$GP checkout a && return 1
+	$GP checkout --create a || return 2
+	$GP checkout b && return 3
+	$GP checkout -c b || return 4
+	[[ "`$GP list | wc -l`" = 2 ]] || return 5
 	return 0
 }
 
 ### Test the correct handling of the -c / --create and -m / --migrate options.
 TESTS+=(checkout_create_migrate)
 checkout_create_migrate() {
-	./gp init
-	./gp checkout a && return 1
-	./gp checkout --create a || return 2
+	$GP init
+	$GP checkout a && return 1
+	$GP checkout --create a || return 2
 	rm .gitparallel/a || return 3
 	mv -T .git .gitparallel/a || return 4
 	mkdir .git || return 5
-	./gp checkout b && return 6
-	./gp checkout --create b && return 7
-	./gp checkout --migrate b && return 8
-	./gp checkout --create --migrate b || return 9
+	$GP checkout b && return 6
+	$GP checkout --create b && return 7
+	$GP checkout --migrate b && return 8
+	$GP checkout --create --migrate b || return 9
 	return 0
 }
 
 ### Test the correct handling of empty input.
 TESTS+=(checkout_empty)
 checkout_empty() {
-	./gp init
-	./gp checkout --create abc || return 1
+	$GP init
+	$GP checkout --create abc || return 1
 	[[ -d .git && -L .gitparallel/abc ]] || return 2
-	./gp checkout || return 3
+	$GP checkout || return 3
 	[[ ! -d .git && -d .gitparallel/abc ]] || return 4
 	return 0
 }
@@ -758,72 +758,72 @@ checkout_empty() {
 ### Test the correct handling of extraneous input.
 TESTS+=(checkout_extra)
 checkout_extra() {
-	./gp init
-	./gp checkout --create foo bar && return 1
+	$GP init
+	$GP checkout --create foo bar && return 1
 	return 0
 }
 
 ### Test the correct handling of --.
 TESTS+=(checkout_dbldash)
 checkout_dbldash() {
-	./gp init
-	./gp create a b c -- d e || return 1
-	./gp checkout -- d || return 2
-	./gp checkout -- e || return 3
+	$GP init
+	$GP create a b c -- d e || return 1
+	$GP checkout -- d || return 2
+	$GP checkout -- e || return 3
 	return 0
 }
 
 ### Test the correct handling of the command alias.
 TESTS+=(checkout_alias)
 checkout_alias() {
-	./gp init
-	./gp co a && return 1
-	./gp create a || return 2
-	./gp co a || return 3
-	./gp rm --force a || return 4
-	./gp co a && return 5
+	$GP init
+	$GP co a && return 1
+	$GP create a || return 2
+	$GP co a || return 3
+	$GP rm --force a || return 4
+	$GP co a && return 5
 	return 0
 }
 
 ### Test the correct handling of the -m / --migrate option.
 TESTS+=(checkout_migrate)
 checkout_migrate() {
-	./gp init
-	./gp checkout --create -m a && return 1
-	./gp checkout --create --migrate a && return 2
+	$GP init
+	$GP checkout --create -m a && return 1
+	$GP checkout --create --migrate a && return 2
 	mkdir .git foo || return 3
 	touch .git/foobar || return 4
 	cd foo || return 5
-	../gp init || return 6
-	../gp checkout --create -m a || return 7
+	.$GP init || return 6
+	.$GP checkout --create -m a || return 7
 	[[ -e .gitparallel/a/foobar ]] || return 8
-	../gp checkout --create --migrate a && return 9
+	.$GP checkout --create --migrate a && return 9
 
 	rm .gitparallel/a || return 10
 	mv -T .git .gitparallel/a || return 11
 	mkdir .git || return 12
 	touch .git/foobar || return 13
 
-	../gp checkout --create --migrate b || return 7
+	.$GP checkout --create --migrate b || return 7
 	[[ -e .gitparallel/b/foobar ]] || return 8
-	../gp checkout --create -m b && return 9
+	.$GP checkout --create -m b && return 9
 	return 0
 }
 
 ### Test the correct handling of illegal project names.
 TESTS+=(checkout_checkNames)
 checkout_checkNames() {
-	./gp init
-	./gp checkout --create '' && return 1
-	./gp checkout --create a/b && return 2
-	./gp checkout --create 'a
+	$GP init
+	$GP checkout --create '' && return 1
+	$GP checkout --create a/b && return 2
+	$GP checkout --create 'a
 	                        b' && return 3
-	./gp checkout --create . && return 4
-	./gp checkout --create a. || return 5
-	./gp checkout --create --bogus && return 6
-	./gp checkout --create bo-gus || return 7
-	./gp checkout --create a b 'c d' && return 8
-	./gp checkout --create a b 'c	d' && return 9
+	$GP checkout --create . && return 4
+	$GP checkout --create a. || return 5
+	$GP checkout --create --bogus && return 6
+	$GP checkout --create bo-gus || return 7
+	$GP checkout --create a b 'c d' && return 8
+	$GP checkout --create a b 'c	d' && return 9
 	return 0
 }
 
@@ -831,61 +831,61 @@ checkout_checkNames() {
 ### Test the correct functionality of the command.
 TESTS+=(do_cmd)
 do_cmd() {
-	./gp init
-	./gp create a b c || return 1
-	./gp do a b c -- log && return 2
+	$GP init
+	$GP create a b c || return 1
+	$GP do a b c -- log && return 2
 	touch file
-	./gp do a b c -- add file || return 3
-	./gp do a b c -- commit -am 'initial commit' || return 3
-	./gp do a b c -- log || return 4
+	$GP do a b c -- add file || return 3
+	$GP do a b c -- commit -am 'initial commit' || return 3
+	$GP do a b c -- log || return 4
 	return 0
 }
 
 ### Test the correct handling of the -f / --force option.
 TESTS+=(do_force)
 do_force() {
-	./gp init
-	./gp create a b c || return 1
-	./gp do a b c -- log && return 2
-	./gp do -f a b c -- log || return 3
-	./gp do a b c --force -- log || return 4
-	./gp do a b c -- log && return 5
+	$GP init
+	$GP create a b c || return 1
+	$GP do a b c -- log && return 2
+	$GP do -f a b c -- log || return 3
+	$GP do a b c --force -- log || return 4
+	$GP do a b c -- log && return 5
 	return 0
 }
 
 ### Test that the command fails without `init`.
 TESTS+=(do_noinit)
 do_noinit() {
-	./gp init
-	./gp create a b c || return 1
+	$GP init
+	$GP create a b c || return 1
 	rm -r .gitparallel
-	./gp do `./gp list` -- status --porcelain && return 2
+	$GP do `$GP list` -- status --porcelain && return 2
 	return 0
 }
 
 ### Test that the command does not change the current working directory.
 TESTS+=(do_pwd)
 do_pwd() {
-	./gp init
-	./gp checkout --create master || return 1
+	$GP init
+	$GP checkout --create master || return 1
 	mkdir aaa
 	cd aaa
 	touch bbb
-	../gp do master -- add bbb || return 2
+	.$GP do master -- add bbb || return 2
 	return 0
 }
 
 ### Test the restoration of the previous environment.
 TESTS+=(do_restore)
 do_restore() {
-	./gp init
-	./gp create a b c || return 1
-	./gp do `./gp list` -- status --porcelain || return 2
+	$GP init
+	$GP create a b c || return 1
+	$GP do `$GP list` -- status --porcelain || return 2
 	[[ -e .git ]] && return 3
 	mkdir .git
 	touch .git/foobar
-	./gp do `./gp list` -- status --porcelain || return 4
-	./gp do `./gp list` -- status --porcelain || return 5
+	$GP do `$GP list` -- status --porcelain || return 4
+	$GP do `$GP list` -- status --porcelain || return 5
 	[[ -e .git/foobar ]] || return 6
 	return 0
 }
@@ -893,9 +893,9 @@ do_restore() {
 ### Test the non-expansion of arguments.
 TESTS+=(do_eval)
 do_eval() {
-	./gp init
-	./gp create a b c || return 1
-	./gp do `./gp list` -- status --porcelain '(' || return 2
+	$GP init
+	$GP create a b c || return 1
+	$GP do `$GP list` -- status --porcelain '(' || return 2
 	return 0
 }
 
@@ -903,74 +903,74 @@ do_eval() {
 ### Test the correct functionality of the command.
 TESTS+=(foreach)
 foreach() {
-	./gp init
-	./gp create a b c || return 1
-	./gp foreach log && return 2
+	$GP init
+	$GP create a b c || return 1
+	$GP foreach log && return 2
 	touch file
-	./gp foreach add file || return 3
-	./gp foreach commit -am 'initial commit' || return 3
-	./gp foreach log || return 4
+	$GP foreach add file || return 3
+	$GP foreach commit -am 'initial commit' || return 3
+	$GP foreach log || return 4
 	return 0
 }
 
 ### Test the correct handling of the command alias.
 TESTS+=(foreach_alias)
 foreach_alias() {
-	./gp init
-	./gp create a b c || return 1
-	./gp fe log && return 2
+	$GP init
+	$GP create a b c || return 1
+	$GP fe log && return 2
 	touch file
-	./gp fe add file || return 3
-	./gp fe commit -am 'initial commit' || return 3
-	./gp fe log || return 4
+	$GP fe add file || return 3
+	$GP fe commit -am 'initial commit' || return 3
+	$GP fe log || return 4
 	return 0
 }
 
 ### Test the correct handling of the -f / --force option.
 TESTS+=(foreach_force)
 foreach_force() {
-	./gp init
-	./gp create a b c || return 1
-	./gp foreach log && return 2
-	./gp foreach -f log || return 3
-	./gp foreach --force log || return 4
-	./gp foreach log && return 5
+	$GP init
+	$GP create a b c || return 1
+	$GP foreach log && return 2
+	$GP foreach -f log || return 3
+	$GP foreach --force log || return 4
+	$GP foreach log && return 5
 	return 0
 }
 
 ### Test that the command fails without `init`.
 TESTS+=(foreach_noinit)
 foreach_noinit() {
-	./gp init
-	./gp create a b c || return 1
+	$GP init
+	$GP create a b c || return 1
 	rm -r .gitparallel
-	./gp foreach status --porcelain && return 2
+	$GP foreach status --porcelain && return 2
 	return 0
 }
 
 ### Test that the command does not change the current working directory.
 TESTS+=(foreach_pwd)
 foreach_pwd() {
-	./gp init
-	./gp checkout --create master || return 1
+	$GP init
+	$GP checkout --create master || return 1
 	mkdir aaa
 	cd aaa
 	touch bbb
-	../gp foreach add bbb || return 2
+	.$GP foreach add bbb || return 2
 	return 0
 }
 
 ### Test the restoration of the previous environment.
 TESTS+=(foreach_restore)
 foreach_restore() {
-	./gp init
-	./gp create a b c || return 1
-	./gp foreach status --porcelain || return 2
+	$GP init
+	$GP create a b c || return 1
+	$GP foreach status --porcelain || return 2
 	[[ -e .git ]] && return 3
 	mkdir .git
 	touch .git/foobar
-	./gp foreach status --porcelain || return 4
-	./gp foreach status --porcelain || return 5
+	$GP foreach status --porcelain || return 4
+	$GP foreach status --porcelain || return 5
 	[[ -e .git/foobar ]] || return 6
 	return 0
 }
@@ -978,9 +978,9 @@ foreach_restore() {
 ### Test the non-expansion of arguments.
 TESTS+=(foreach_eval)
 foreach_eval() {
-	./gp init
-	./gp create a b c || return 1
-	./gp foreach status --porcelain '(' || return 2
+	$GP init
+	$GP create a b c || return 1
+	$GP foreach status --porcelain '(' || return 2
 	return 0
 }
 
@@ -991,8 +991,8 @@ upgrade_sub_v2_0_0() {
 	mkdir .gitparallel
 	mkdir .gitparallel/{a,b,c}
 	ln -s .gitparallel/a .git
-	./gp upgrade || return 1
-	./gp foreach status --porcelain || return 6
+	$GP upgrade || return 1
+	$GP foreach status --porcelain || return 6
 	[[ `gp list --active` = a ]] || return 7
 	return 0
 }
@@ -1004,8 +1004,8 @@ upgrade_eq_v2_0_0() {
 	mkdir .gitparallel/{a,b,c}
 	ln -s .gitparallel/a .git
 	printf '2.0.0\n' >.gitparallel/.version
-	./gp upgrade || return 1
-	./gp foreach status --porcelain && return 6
+	$GP upgrade || return 1
+	$GP foreach status --porcelain && return 6
 	[[ `gp list --active` = a ]] && return 7
 	return 0
 }
@@ -1017,25 +1017,34 @@ upgrade_sup_v2_0_0() {
 	mkdir .gitparallel/{a,b,c}
 	ln -s .gitparallel/a .git
 	printf '3.0.0\n' >.gitparallel/.version
-	./gp upgrade && return 1
-	./gp foreach status --porcelain && return 6
+	$GP upgrade && return 1
+	$GP foreach status --porcelain && return 6
 	[[ `gp list --active` = a ]] && return 7
 	return 0
 }
 
 # == The main routine ==
-trap 'rm -rf "$LOG" "$DIR"' EXIT
-LOG="`mktemp`" &&
-for TEST in "${TESTS[@]}"; do
-	printf 'Running \033[1m%s\033[m ...' "$TEST"
-	DIR="`mktemp -d`" &&
-	{ if (cp gp "$DIR"/gp && cd "$DIR" && "$TEST" &>"$LOG"); then
-		printf '\t\033[1m\033[32m[OK]\033[m\n'
-	else
-		printf '\t\033[1m\033[31m[FAILED: %d]\033[m\n' "$?"
-		cat "$LOG"
-		exit 1
-	fi
-	rm -rf "$DIR"; }
-done
+
+main() {
+	trap 'rm -rf "$LOG" "$DIR"' EXIT
+	LOG="`mktemp`" &&
+	for TEST in "${TESTS[@]}"; do
+		printf 'Running \033[1m%s\033[m ...' "$TEST"
+		DIR="`mktemp -d`" &&
+		{ if (cp gp "$DIR"/gp && cd "$DIR" && "$TEST" &>"$LOG"); then
+			printf '\t\033[1m\033[32m[OK]\033[m\n'
+		else
+			printf '\t\033[1m\033[31m[FAILED: %d]\033[m\n' "$?"
+			cat "$LOG"
+			exit 1
+		fi
+		rm -rf "$DIR"; }
+	done
+}
+
+
+printf 'Running a verbose suite ...\n'
+GP="./gp" main
+printf 'Running a quiet suite ...\n'
+GP="./gp --quiet" main
 printf '\033[1m\033[32mAll passed!\033[m\n'
