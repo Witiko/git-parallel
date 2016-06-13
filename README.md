@@ -25,13 +25,13 @@ The Git repositories are stored inside a `.gitparallel` directory with
     `PATH` variable as well.
  3. To enable Bash command completion for Git-parallel, the
     [`gp.bash-completion`](gp.bash-completion) script needs to be sourced, when
-    bash starts. This can be done as a system level by moving the script into the
-    `/etc/bash-completion.d/` directory, or on a per-user basis by including a
-    line such as
+    bash starts. This can be done at the system level by moving the script into
+    the `/etc/bash-completion.d/` directory, or on a per-user basis by
+    including a line such as
 
         source path/to/gp.bash-completion
 
-    in the `.bashrc` configuration file located in the user's home directory.
+    into the `~/.bashrc` configuration file.
 
 ## How does `gp` relate to Git submodules?
 
