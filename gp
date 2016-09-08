@@ -769,7 +769,7 @@ repository, specify the -C / --clobber option.
 
 		# Guard against dubious input.
 		if [[ $SOURCE = $DEST ]]; then
-			errcat <-EOF
+			errcat <<-EOF
 You are attempting to move the Git-parallel repository $SOURCE onto itself.
 			EOF
 			return 6
