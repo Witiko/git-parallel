@@ -193,7 +193,7 @@ EOF
 }
 
 # Print the version information.
-VERSION=2.1.1
+VERSION=2.1.2
 version() {
 	wrap <<<"Git-parallel version $VERSION"
 	wrap <<<"Copyright © 2016 Vít Novotný"
