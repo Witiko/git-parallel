@@ -572,7 +572,7 @@ option is specified or when the output of the command gets piped outside the
 terminal, a raw newline-terminated list is produced. When the -H /
 --human-readable option is specified or when the output of the command stays in
 the terminal, a formatted list is produced. When the -a / --active option is
-specified, only the active directory is listed."
+specified, only the active repository is listed."
 
 list() {
 	local PORCELAIN
@@ -918,8 +918,8 @@ remove() {
 		if [[ $REPO = $ACTIVE ]] && ! $FORCE; then
 			errcat <<-EOF
 The Git-parallel repository	'$REPO' is active. By removing it, the contents of
-your active Git repository WILL BE LOST! To approve the removal, specify the -f
-/ --force option.
+your active Git repository WILL BE LOST! To authorize the removal, specify the
+-f / --force option.
 			EOF
 			return 5
 		fi
@@ -948,9 +948,9 @@ newSubcommand       \
 	USAGE=\
 "switches to the specified Git-parallel REPOsitory. When the -c / --create
 option is specified, an equivalent of the '$GP_EXECUTABLE create' command is
-performed beforehand. If there exists a '.git' directory that is not a symlink
-to '$GP_DIR' and that would therefore be overriden by the switch, the -C /
---clobber or the -m / migrate option is required.
+performed beforehand. If there exists an active Git repository that is not
+a Git-parallel repository and that would therefore be overriden by the switch,
+the -C / --clobber or the -m / migrate option is required.
 
 When no Git-parallel REPOsitories are specified, the active Git-parallel
 repository is deactivated (pulled back into the '$GP_DIR' directory)."
@@ -1001,10 +1001,10 @@ The Git-parallel repository '$REPO' does not exist in '$PWD'. Specify the -c /
 	if [[ ! -z "$REPO" && -d .git && -z "$ACTIVE" ]] &&
 	! { $CLOBBER || { $CREATE && $MIGRATE; }; }; then
 		errcat <<-'EOF'
-There exists an active Git repository that is not a symlink to a Git-parallel
-repository. By switching to another Git-parallel repository, the contents of
-your active Git repository WILL BE LOST! To approve the removal, specify the -C
-/ --clobber option.
+There exists an active Git repository that is not a Git-parallel repository. By
+switching to a Git-parallel repository, the contents of the active Git
+repository WILL BE LOST! To authorize the removal, specify the -C / --clobber
+option.
 		EOF
 		return 6
 	fi
