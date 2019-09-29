@@ -993,7 +993,7 @@ upgrade_sub_v2_0_0() {
 	ln -s .gitparallel/a .git
 	$GP upgrade || return 1
 	$GP foreach status --porcelain || return 6
-	[[ `gp list --active` = a ]] || return 7
+	[[ `$GP list --active` = a ]] || return 7
 	return 0
 }
 
@@ -1006,7 +1006,7 @@ upgrade_eq_v2_0_0() {
 	printf '2.0.0\n' >.gitparallel/.version
 	$GP upgrade || return 1
 	$GP foreach status --porcelain && return 6
-	[[ `gp list --active` = a ]] && return 7
+	[[ `$GP list --active` = a ]] && return 7
 	return 0
 }
 
@@ -1019,7 +1019,7 @@ upgrade_sup_v2_0_0() {
 	printf '3.0.0\n' >.gitparallel/.version
 	$GP upgrade && return 1
 	$GP foreach status --porcelain && return 6
-	[[ `gp list --active` = a ]] && return 7
+	[[ `$GP list --active` = a ]] && return 7
 	return 0
 }
 

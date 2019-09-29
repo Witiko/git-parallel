@@ -1,4 +1,7 @@
 # Git-parallel
+[![CircleCI](https://circleci.com/gh/Witiko/git-parallel/tree/master.svg?style=shield)][CircleCI]
+
+ [CircleCI]: https://circleci.com/gh/Witiko/git-parallel/tree/master "CircleCI"
 
 Git-parallel, also known as `gp`, is a shell script that makes it possible to
 create and switch between several Git repositories inside a single directory.

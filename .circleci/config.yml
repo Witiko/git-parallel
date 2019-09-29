@@ -1,0 +1,13 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/Witiko/git-parallel
+    shell: /bin/bash --login
+    docker:
+    - image: circleci/build-image:ubuntu-14.04-XXL-upstart-1189-5614f37
+    steps:
+    - checkout
+    - run: |
+        git config --global user.email "you@example.com"
+        git config --global user.name "Your Name"
+        ./test.sh
