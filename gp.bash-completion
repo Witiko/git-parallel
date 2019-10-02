@@ -20,212 +20,212 @@
 
 # `git parallel` and `git-parallel` autocompletion.
 _git_parallel() {
-	COMP_CWORD=$(($COMP_CWORD-1))
-	COMP_WORDS=(gp "${COMP_WORDS[@]:2}")
-	_gp
+  COMP_CWORD=$(($COMP_CWORD-1))
+  COMP_WORDS=(gp "${COMP_WORDS[@]:2}")
+  _gp
 }
 
 # `gp` autocompletion. 
 _gp() {
-	local OPTS=()
-	local IFS=$' \t\n'
+  local OPTS=()
+  local IFS=$' \t\n'
 
-	# Skip any leading global options.
-	local QUIET=false
-	for ((I = 1; I < $COMP_CWORD; I++)); do
-		[[ ! "${COMP_WORDS[$I]}" =~ ^-q|--quiet$ ]] && break
-		! $QUIET && QUIET=true
-		COMP_CWORD=$(($COMP_CWORD-1))
-		COMP_WORDS=("${COMP_WORDS[0]}" "${COMP_WORDS[@]:2}")
-	done
+  # Skip any leading global options.
+  local QUIET=false
+  for ((I = 1; I < $COMP_CWORD; I++)); do
+    [[ ! "${COMP_WORDS[$I]}" =~ ^-q|--quiet$ ]] && break
+    ! $QUIET && QUIET=true
+    COMP_CWORD=$(($COMP_CWORD-1))
+    COMP_WORDS=("${COMP_WORDS[0]}" "${COMP_WORDS[@]:2}")
+  done
 
-	if [[ $COMP_CWORD -le 1 ]]; then
-		# Perform completion for the base command.
-		OPTS=(help --version -v --help -h)
-		! $QUIET && OPTS+=(-q --quiet)
-		if gp list &>/dev/null; then
-			OPTS+=(
-				co checkout cr create do ls list cp copy mv move rename rm remove fe
-				foreach
-			)
-		else
-			OPTS+=(i init upgrade)
-		fi
-	else
-		local REPOS="`gp list 2>/dev/null`"
-		# Perform completion for subcommands.
-		case "${COMP_WORDS[1]}" in
-			co) ;& checkout)
-				# Suggest repository names, if no repository has yet been specified.
-				local REPO_SPECIFIED=false
-				local MIGRATE=false
-				local CREATE=false
-				local CLOBBER=false
-				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if ! $MIGRATE && [[ "${COMP_WORDS[$I]}" =~ ^-m|--migrate$ ]]; then
-						MIGRATE=true
-					fi
-					if ! $CREATE && [[ "${COMP_WORDS[$I]}" =~ ^-c|--create$ ]]; then
-						CREATE=true
-					fi
-					if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
-						CLOBBER=true
-					fi
-					if grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
-						REPO_SPECIFIED=true
-						break
-					fi
-				done
-				if $CREATE; then
-					! $MIGRATE && OPTS+=(-m --migrate)
-				else
-					OPTS+=(-c --create)
-				fi
-				! $CLOBBER && OPTS+=(-C --clobber)
-				! $REPO_SPECIFIED && OPTS+=($REPOS)
-				;;
-			cp) ;& copy)
-				local CLOBBER=false
-				local FORCE=false
-				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
-						CLOBBER=true
-					fi
-					if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
-						FORCE=true
-					fi
-				done
-				OPTS=($REPOS)
-				! $CLOBBER && OPTS+=(-C --clobber)
-				! $FORCE && OPTS+=(-f --force)
-				;;
-			mv) ;& move) ;& rename)
-				# Suggest repository names, if <2 repositories have been specified.
-				local REPOS_SPECIFIED=0
-				local CLOBBER=false
-				local FORCE=false
-				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
-						REPOS_SPECIFIED=$((REPOS_SPECIFIED+1))
-					fi
-					if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
-						CLOBBER=true
-					fi
-					if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
-						FORCE=true
-					fi
-				done
-				if [[ $REPOS_SPECIFIED -lt 2 ]]; then
-					OPTS+=($REPOS)
-				fi
-				! $CLOBBER && OPTS+=(-C --clobber)
-				! $FORCE && OPTS+=(-f --force)
-				;;
-			rm) ;& remove)
-				local FORCE=false
-				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
-						FORCE=true
-						break
-					fi
-				done
-				OPTS=($REPOS)
-				! $FORCE && OPTS+=(-f --force)
-				;;
-			cr) ;& create)
-				local MIGRATE=false
-				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if [[ "${COMP_WORDS[$I]}" =~ ^-m|--migrate$ ]]; then
-						MIGRATE=true
-						break
-					fi
-				done
-				! $MIGRATE && OPTS=(-m --migrate)
-				;;
-			do)
-				# Suggest the -f / --force option and repository names, if the user has
-				# not yet typed --.
-				local TYPING_COMMAND=false
-				local REPO_SPECIFIED=false
-				local FORCE=false
-				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
-						FORCE=true
-					fi
-					if ! $REPO_SPECIFIED &&
-					grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
-						REPO_SPECIFIED=true
-					fi
-					if [[ "${COMP_WORDS[$I]}" = -- ]]; then
-						TYPING_COMMAND=true
-						break
-					fi
-				done
-				if ! $TYPING_COMMAND; then
-					OPTS=($REPOS)
-					$REPO_SPECIFIED && OPTS+=(--)
-					! $FORCE && OPTS+=(-f --force)
-				fi
-				;;
-			fe) ;& foreach)
-				# Suggest the -f / --force option, if the user is typing the argument
-				# immediately following 'gp foreach'.
-				if [[ $COMP_CWORD = 2 ]]; then
-					OPTS=(-f --force)
-				fi
-				;;
-			i) ;& init)
-				local FOLLOW_GIT=false
-				local UPDATE_GITIGNORE=false
-				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if ! $FOLLOW_GIT &&
-					[[ "${COMP_WORDS[$I]}" =~ ^-F|--follow-git$ ]]; then
-						FOLLOW_GIT=true
-					fi
-					if ! $UPDATE_GITIGNORE &&
-					[[ "${COMP_WORDS[$I]}" =~ ^-u|--update-gitignore$ ]]; then
-						UPDATE_GITIGNORE=true
-					fi
-				done
-				! $FOLLOW_GIT && OPTS+=(-F --follow-git)
-				! $UPDATE_GITIGNORE && OPTS+=(-u --update-gitignore)
-				;;
-			ls) ;& list)
-				local PORCELAIN=false
-				local HUMAN_READABLE=false
-				local ACTIVE=false
-				for ((I = 2; I < $COMP_CWORD; I++)); do
-					if ! $PORCELAIN &&
-					[[ "${COMP_WORDS[$I]}" =~ ^-p|--porcelain$ ]]; then
-						PORCELAIN=true
-						break
-					fi
-					if ! $HUMAN_READABLE &&
-					[[ "${COMP_WORDS[$I]}" =~ ^-H|--human-readable$ ]]; then
-						HUMAN_READABLE=true
-						break
-					fi
-					if ! $ACTIVE &&
-					[[ "${COMP_WORDS[$I]}" =~ ^-a|--active$ ]]; then
-						ACTIVE=true
-						break
-					fi
-				done
-				if ! $PORCELAIN && ! $HUMAN_READABLE && ! $ACTIVE; then
-					OPTS=(-a --active -p --porcelain -H --human-readable)
-				fi
-				;;
-			help)
-				OPTS=(
-					i init co checkout cr create do ls list cp copy mv move rename rm
-					remove fe foreach upgrade
-				)
-				;;
-		esac
-	fi
+  if [[ $COMP_CWORD -le 1 ]]; then
+    # Perform completion for the base command.
+    OPTS=(help --version -v --help -h)
+    ! $QUIET && OPTS+=(-q --quiet)
+    if gp list &>/dev/null; then
+      OPTS+=(
+        co checkout cr create do ls list cp copy mv move rename rm remove fe
+        foreach
+      )
+    else
+      OPTS+=(i init upgrade)
+    fi
+  else
+    local REPOS="`gp list 2>/dev/null`"
+    # Perform completion for subcommands.
+    case "${COMP_WORDS[1]}" in
+      co) ;& checkout)
+        # Suggest repository names, if no repository has yet been specified.
+        local REPO_SPECIFIED=false
+        local MIGRATE=false
+        local CREATE=false
+        local CLOBBER=false
+        for ((I = 2; I < $COMP_CWORD; I++)); do
+          if ! $MIGRATE && [[ "${COMP_WORDS[$I]}" =~ ^-m|--migrate$ ]]; then
+            MIGRATE=true
+          fi
+          if ! $CREATE && [[ "${COMP_WORDS[$I]}" =~ ^-c|--create$ ]]; then
+            CREATE=true
+          fi
+          if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
+            CLOBBER=true
+          fi
+          if grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
+            REPO_SPECIFIED=true
+            break
+          fi
+        done
+        if $CREATE; then
+          ! $MIGRATE && OPTS+=(-m --migrate)
+        else
+          OPTS+=(-c --create)
+        fi
+        ! $CLOBBER && OPTS+=(-C --clobber)
+        ! $REPO_SPECIFIED && OPTS+=($REPOS)
+        ;;
+      cp) ;& copy)
+        local CLOBBER=false
+        local FORCE=false
+        for ((I = 2; I < $COMP_CWORD; I++)); do
+          if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
+            CLOBBER=true
+          fi
+          if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
+            FORCE=true
+          fi
+        done
+        OPTS=($REPOS)
+        ! $CLOBBER && OPTS+=(-C --clobber)
+        ! $FORCE && OPTS+=(-f --force)
+        ;;
+      mv) ;& move) ;& rename)
+        # Suggest repository names, if <2 repositories have been specified.
+        local REPOS_SPECIFIED=0
+        local CLOBBER=false
+        local FORCE=false
+        for ((I = 2; I < $COMP_CWORD; I++)); do
+          if grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
+            REPOS_SPECIFIED=$((REPOS_SPECIFIED+1))
+          fi
+          if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
+            CLOBBER=true
+          fi
+          if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
+            FORCE=true
+          fi
+        done
+        if [[ $REPOS_SPECIFIED -lt 2 ]]; then
+          OPTS+=($REPOS)
+        fi
+        ! $CLOBBER && OPTS+=(-C --clobber)
+        ! $FORCE && OPTS+=(-f --force)
+        ;;
+      rm) ;& remove)
+        local FORCE=false
+        for ((I = 2; I < $COMP_CWORD; I++)); do
+          if [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
+            FORCE=true
+            break
+          fi
+        done
+        OPTS=($REPOS)
+        ! $FORCE && OPTS+=(-f --force)
+        ;;
+      cr) ;& create)
+        local MIGRATE=false
+        for ((I = 2; I < $COMP_CWORD; I++)); do
+          if [[ "${COMP_WORDS[$I]}" =~ ^-m|--migrate$ ]]; then
+            MIGRATE=true
+            break
+          fi
+        done
+        ! $MIGRATE && OPTS=(-m --migrate)
+        ;;
+      do)
+        # Suggest the -f / --force option and repository names, if the user has
+        # not yet typed --.
+        local TYPING_COMMAND=false
+        local REPO_SPECIFIED=false
+        local FORCE=false
+        for ((I = 2; I < $COMP_CWORD; I++)); do
+          if ! $FORCE && [[ "${COMP_WORDS[$I]}" =~ ^-f|--force$ ]]; then
+            FORCE=true
+          fi
+          if ! $REPO_SPECIFIED &&
+          grep -qF -- "${COMP_WORDS[$I]}" <<<"$REPOS"; then
+            REPO_SPECIFIED=true
+          fi
+          if [[ "${COMP_WORDS[$I]}" = -- ]]; then
+            TYPING_COMMAND=true
+            break
+          fi
+        done
+        if ! $TYPING_COMMAND; then
+          OPTS=($REPOS)
+          $REPO_SPECIFIED && OPTS+=(--)
+          ! $FORCE && OPTS+=(-f --force)
+        fi
+        ;;
+      fe) ;& foreach)
+        # Suggest the -f / --force option, if the user is typing the argument
+        # immediately following 'gp foreach'.
+        if [[ $COMP_CWORD = 2 ]]; then
+          OPTS=(-f --force)
+        fi
+        ;;
+      i) ;& init)
+        local FOLLOW_GIT=false
+        local UPDATE_GITIGNORE=false
+        for ((I = 2; I < $COMP_CWORD; I++)); do
+          if ! $FOLLOW_GIT &&
+          [[ "${COMP_WORDS[$I]}" =~ ^-F|--follow-git$ ]]; then
+            FOLLOW_GIT=true
+          fi
+          if ! $UPDATE_GITIGNORE &&
+          [[ "${COMP_WORDS[$I]}" =~ ^-u|--update-gitignore$ ]]; then
+            UPDATE_GITIGNORE=true
+          fi
+        done
+        ! $FOLLOW_GIT && OPTS+=(-F --follow-git)
+        ! $UPDATE_GITIGNORE && OPTS+=(-u --update-gitignore)
+        ;;
+      ls) ;& list)
+        local PORCELAIN=false
+        local HUMAN_READABLE=false
+        local ACTIVE=false
+        for ((I = 2; I < $COMP_CWORD; I++)); do
+          if ! $PORCELAIN &&
+          [[ "${COMP_WORDS[$I]}" =~ ^-p|--porcelain$ ]]; then
+            PORCELAIN=true
+            break
+          fi
+          if ! $HUMAN_READABLE &&
+          [[ "${COMP_WORDS[$I]}" =~ ^-H|--human-readable$ ]]; then
+            HUMAN_READABLE=true
+            break
+          fi
+          if ! $ACTIVE &&
+          [[ "${COMP_WORDS[$I]}" =~ ^-a|--active$ ]]; then
+            ACTIVE=true
+            break
+          fi
+        done
+        if ! $PORCELAIN && ! $HUMAN_READABLE && ! $ACTIVE; then
+          OPTS=(-a --active -p --porcelain -H --human-readable)
+        fi
+        ;;
+      help)
+        OPTS=(
+          i init co checkout cr create do ls list cp copy mv move rename rm
+          remove fe foreach upgrade
+        )
+        ;;
+    esac
+  fi
 
-	COMPREPLY=($(compgen -W "${OPTS[*]}" -- "${COMP_WORDS[$COMP_CWORD]}"))
-	return 0
+  COMPREPLY=($(compgen -W "${OPTS[*]}" -- "${COMP_WORDS[$COMP_CWORD]}"))
+  return 0
 }
 
 complete -F _gp gp
