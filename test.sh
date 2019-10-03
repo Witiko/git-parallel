@@ -145,6 +145,120 @@ create_migrate() {
 	return 0
 }
 
+### Test the correct handling of the -m / --migrate and -c / --clone options.
+TESTS+=(create_migrate_clone)
+create_migrate_clone() {
+	$GP init
+	$GP create -m a b c && return 1
+	$GP create --migrate a b c && return 2
+	mkdir .git foo || return 3
+	touch .git/foobar || return 4
+	cd foo || return 5
+	.$GP init || return 6
+	.$GP create -m --clone url a b c && return 7
+	.$GP create -m -l url a && return 8
+	[[ -e .gitparallel/a/foobar ]] && return 9
+	[[ -e .gitparallel/b/foobar ]] && return 10
+	[[ -e .gitparallel/c/foobar ]] && return 11
+	.$GP create -m a b c || return 12
+	[[ -e .gitparallel/a/foobar ]] || return 13
+	[[ -e .gitparallel/b/foobar ]] || return 14
+	[[ -e .gitparallel/c/foobar ]] || return 15
+  return 0
+}
+
+### Test the correct handling of the -c / --clone option.
+TESTS+=(create_clone)
+create_clone() {
+	$GP init
+
+  mkdir repo-a || return 1
+  cd repo-a || return 2
+  git init || return 3
+  touch a || return 4
+  git add a || return 5
+  git commit -m 'initial commit' || return 6
+  git checkout -B branch-a || return 7
+  cd .. || return 8
+
+  mkdir repo-b || return 9
+  cd repo-b || return 10
+  git init || return 11
+  touch b || return 12
+  git add b || return 13
+  git commit -m 'initial commit' || return 14
+  git checkout -B branch-b || return 15
+  cd .. || return 16
+
+  $GP create --clone ./repo-a branch-a repo-a || return 17
+  $GP create -l ./repo-b branch-b repo-b || return 18
+  [[ -e a ]] || return 19
+  [[ -e b ]] || return 20
+	$GP list --active && return 21
+	[[ "`$GP list | wc -l`" = 2 ]] || return 22
+	[[ "`$GP list | head -n 1`" = repo-a ]] || return 23
+	[[ "`$GP list | tail -n 1`" = repo-b ]] || return 24
+
+  return 0
+}
+
+### Test the correct handling of illegal repository URLs and branch names.
+TESTS+=(create_clone_checkNames)
+create_clone_checkNames() {
+	$GP init
+
+  mkdir repo-a || return 1
+  cd repo-a || return 2
+  git init || return 3
+  touch a || return 4
+  git add a || return 5
+  git commit -m 'initial commit' || return 6
+  git checkout -B branch-a || return 7
+  cd .. || return 8
+
+  $GP create repo-a --clone && return 9
+  $GP create repo-a --clone ./repo-a && return 10
+  $GP create repo-a --clone '' branch-a && return 11
+  $GP create repo-a --clone -illegal-url branch-a && return 12
+  $GP create repo-a --clone ./repo-a '' && return 13
+  $GP create repo-a --clone ./repo-a -illegal-name && return 14
+  $GP create repo-a --clone ./repo-a branch-a || return 15
+  [[ -e a ]] || return 16
+	$GP list --active && return 17
+	[[ "`$GP list | wc -l`" = 1 ]] || return 18
+	[[ "`$GP list`" = repo-a ]] || return 19
+
+  return 0
+}
+
+### Test the correct handling of extraneous input.
+TESTS+=(create_clone_extra)
+create_clone_extra() {
+	$GP init
+
+  mkdir repo-a || return 1
+  cd repo-a || return 2
+  git init || return 3
+  touch a || return 4
+  git add a || return 5
+  git commit -m 'initial commit' || return 6
+  git checkout -B branch-a || return 7
+  cd .. || return 8
+
+  mkdir repo-b || return 9
+  cd repo-b || return 10
+  git init || return 11
+  touch b || return 12
+  git add b || return 13
+  git commit -m 'initial commit' || return 14
+  git checkout -B branch-b || return 15
+  cd .. || return 16
+
+  $GP create --clone ./repo-a branch-a repo-a repo-b && return 17
+
+  return 0
+}
+
 ### Test the correct handling of illegal project names.
 TESTS+=(create_checkNames)
 create_checkNames() {
@@ -740,8 +854,90 @@ checkout_create_migrate() {
 	$GP checkout b && return 6
 	$GP checkout --create b && return 7
 	$GP checkout --migrate b && return 8
-	$GP checkout --create --migrate b || return 9
+	$GP checkout -c -m b || return 9
 	return 0
+}
+
+### Test the correct handling of the -m / --migrate and -c / --clone options.
+TESTS+=(checkout_create_migrate_clone)
+checkout_create_migrate_clone() {
+	$GP init
+	$GP checkout a && return 1
+	$GP checkout --create a || return 2
+	rm .gitparallel/a || return 3
+	mv -T .git .gitparallel/a || return 4
+	mkdir .git || return 5
+	$GP checkout b && return 6
+	$GP checkout --create b && return 7
+	$GP checkout --migrate b && return 8
+	$GP checkout -c -m --clone url b && return 9
+	$GP checkout -c -m -l url b && return 10
+	$GP checkout -c -m b || return 11
+	return 0
+}
+
+### Test the correct handling of the -c / --clone option.
+TESTS+=(create_checkout_clone)
+create_checkout_clone() {
+	$GP init
+
+  mkdir repo-a || return 1
+  cd repo-a || return 2
+  git init || return 3
+  touch a || return 4
+  git add a || return 5
+  git commit -m 'initial commit' || return 6
+  git checkout -B branch-a || return 7
+  cd .. || return 8
+
+  mkdir repo-b || return 9
+  cd repo-b || return 10
+  git init || return 11
+  touch b || return 12
+  git add b || return 13
+  git commit -m 'initial commit' || return 14
+  git checkout -B branch-b || return 15
+  cd .. || return 16
+
+  $GP checkout --create --clone ./repo-a branch-a repo-a || return 17
+  $GP checkout || return 18
+  $GP checkout --create -l ./repo-b branch-b repo-b || return 19
+  [[ -e a ]] || return 20
+  [[ -e b ]] || return 21
+	[[ "`$GP list --active`" = repo-b ]] || return 22
+	[[ "`$GP list | wc -l`" = 2 ]] || return 23
+	[[ "`$GP list | head -n 1`" = repo-a ]] || return 24
+	[[ "`$GP list | tail -n 1`" = repo-b ]] || return 25
+
+  return 0
+}
+
+### Test the correct handling of illegal repository URLs and branch names.
+TESTS+=(create_checkout_clone_checkNames)
+create_checkout_clone_checkNames() {
+	$GP init
+
+  mkdir repo-a || return 1
+  cd repo-a || return 2
+  git init || return 3
+  touch a || return 4
+  git add a || return 5
+  git commit -m 'initial commit' || return 6
+  git checkout -B branch-a || return 7
+  cd .. || return 8
+
+  $GP checkout --create repo-a --clone && return 9
+  $GP checkout --create repo-a --clone ./repo-a && return 10
+  $GP checkout --create repo-a --clone '' branch-a && return 11
+  $GP checkout --create repo-a --clone -illegal-url branch-a && return 12
+  $GP checkout --create repo-a --clone ./repo-a '' && return 13
+  $GP checkout --create repo-a --clone ./repo-a -illegal-name && return 14
+  $GP checkout --create repo-a --clone ./repo-a branch-a || return 15
+  [[ -e a ]] || return 16
+	[[ "`$GP list --active`" = repo-a ]] || return 17
+	[[ "`$GP list | wc -l`" = 1 ]] || return 18
+
+  return 0
 }
 
 ### Test the correct handling of empty input.

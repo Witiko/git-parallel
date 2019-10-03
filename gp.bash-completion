@@ -59,14 +59,20 @@ _gp() {
         # Suggest repository names, if no repository has yet been specified.
         local REPO_SPECIFIED=false
         local MIGRATE=false
+        local CLONE=false
         local CREATE=false
+        local CREATE_POSITION
         local CLOBBER=false
         for ((I = 2; I < $COMP_CWORD; I++)); do
           if ! $MIGRATE && [[ "${COMP_WORDS[$I]}" =~ ^-m|--migrate$ ]]; then
             MIGRATE=true
           fi
+          if ! $MIGRATE && [[ "${COMP_WORDS[$I]}" =~ ^-l|--clone$ ]]; then
+            CLONE=true
+          fi
           if ! $CREATE && [[ "${COMP_WORDS[$I]}" =~ ^-c|--create$ ]]; then
             CREATE=true
+            CREATE_POSITION=$I
           fi
           if ! $CLOBBER && [[ "${COMP_WORDS[$I]}" =~ ^-C|--clobber$ ]]; then
             CLOBBER=true
@@ -77,12 +83,12 @@ _gp() {
           fi
         done
         if $CREATE; then
-          ! $MIGRATE && OPTS+=(-m --migrate)
+          ! $MIGRATE && ! $CLONE && OPTS+=(-m --migrate -l --clone)
         else
           OPTS+=(-c --create)
         fi
         ! $CLOBBER && OPTS+=(-C --clobber)
-        ! $REPO_SPECIFIED && OPTS+=($REPOS)
+        ! $REPO_SPECIFIED && ! $CREATE && OPTS+=($REPOS)
         ;;
       cp) ;& copy)
         local CLOBBER=false
@@ -134,13 +140,18 @@ _gp() {
         ;;
       cr) ;& create)
         local MIGRATE=false
+        local CLONE=false
         for ((I = 2; I < $COMP_CWORD; I++)); do
           if [[ "${COMP_WORDS[$I]}" =~ ^-m|--migrate$ ]]; then
             MIGRATE=true
             break
           fi
+          if [[ "${COMP_WORDS[$I]}" =~ ^-l|--clone$ ]]; then
+            CLONE=true
+            break
+          fi
         done
-        ! $MIGRATE && OPTS=(-m --migrate)
+        ! $MIGRATE && ! $CLONE && OPTS=(-m --migrate -l --clone)
         ;;
       do)
         # Suggest the -f / --force option and repository names, if the user has

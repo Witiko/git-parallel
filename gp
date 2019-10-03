@@ -212,7 +212,7 @@ EOF
 }
 
 # Print the version information.
-VERSION=2.1.2
+VERSION=2.2.0
 version() {
   wrap <<<"Git-parallel version $VERSION"
   wrap <<<"Copyright © 2016 Vít Novotný"
@@ -700,26 +700,37 @@ newSubcommand     \
   NAMES=cr,create \
   LOCK=exclusive  \
   SYNOPSIS=\
-'[-m | --migrate] REPO...' \
+'[[-m | --migrate] | [-l | --clone] URL BRANCH] REPO...' \
   USAGE=\
 "creates new Git-parallel REPOsitories. When the -m / --migrate option is
 specified, the REPOsitories are initialized with the contents of the currently
-active Git repository. Otherwise, the REPOsitories are initialized by running
-'git init'."
+active Git repository. When the -c / --clone option is specified, the
+REPOsitory is initialized by running an equivalent of 'git clone URL' followed
+by 'git checkout BRANCH'. Otherwise, the REPOsitories are initialized by
+running 'git init'."
 
 create() {
   local REPOS=()
   local MIGRATE=false
+  local CLONE=false
 
   # Collect the options.
   while [[ $# -gt 0 ]]
   do
     case "$1" in
-      -m)                        ;& # fall-through
-      --migrate)  MIGRATE=true   ;;
-      --)                        ;; # ignore
-      *)          checkName "$1" || return 1
-                  REPOS+=($1)    ;;
+      -m)                           ;& # fall-through
+      --migrate)  MIGRATE=true      ;;
+      -l)                           ;& # fall-through
+      --clone)    CLONE=true
+                  shift
+                  local CLONE_URL
+                  CLONE_URL="$1"
+                  shift
+                  local CLONE_BRANCH
+                  CLONE_BRANCH="$1" ;;
+      --)                           ;; # ignore
+      *)          checkName "$1"    || return 1
+                  REPOS+=($1)       ;;
     esac
     shift
   done
@@ -741,6 +752,36 @@ create() {
       return 5
     fi
   done
+  if $CLONE && $MIGRATE
+  then
+    error "The -m / --migrate and -c / --clone options are mutually exclusive."
+    return 6
+  fi
+  if $CLONE
+  then
+    if [[ ${#REPOS[@]} > 1 ]]
+    then
+      errcat<<EOF
+The -c / --clone option can create only a single repository, but ${#REPOS[@]}
+were specified.
+EOF
+      return 7
+    fi
+    if [[ -z $CLONE_URL || $CLONE_URL =~ ^- ]]
+    then
+      errcat<<EOF
+        Empty or malformed Git repository URL '$CLONE_URL' was specified.
+EOF
+      return 7
+    fi
+    if [[ -z $CLONE_BRANCH || $CLONE_BRANCH =~ ^- ]]
+    then
+      errcat<<EOF
+        Empty or malformed Git branch '$BRANCH' was specified.
+EOF
+      return 7
+    fi
+  fi
 
   # Perform the main routine.
   for REPO in ${REPOS[@]}
@@ -752,9 +793,14 @@ create() {
     else
       local FAILED=true
       stash &&
-      (cd $GP_DIR
-      git init &&
-      mv -T .git $REPO) &&
+      (git init &&
+      if $CLONE
+      then
+        git remote add origin "$CLONE_URL" &&
+        git fetch &&
+        git checkout -t origin/"$CLONE_BRANCH" -f
+      fi) &&
+      mv -T .git $GP_DIR/$REPO &&
       FAILED=false
 
       if ! restore || $FAILED
@@ -1040,7 +1086,7 @@ newSubcommand       \
   NAMES=co,checkout \
   LOCK=exclusive    \
   SYNOPSIS=\
-'[[{-c | --create} [-m | --migrate]] [-C | --clobber] REPO]' \
+'[[{-c | --create} [[-m | --migrate] | [-l | --clone] URL BRANCH]] [-C | --clobber] REPO]' \
   USAGE=\
 "switches to the specified Git-parallel REPOsitory. When the -c / --create
 option is specified, an equivalent of the '$GP_EXECUTABLE create' command is
@@ -1055,27 +1101,36 @@ checkout() {
   local REPO=
   local CREATE=false
   local MIGRATE=false
+  local CLONE=false
   local CLOBBER=false
 
   # Collect the options.
   while [[ $# -gt 0 ]]
   do
     case "$1" in
-      -m)                       ;& # fall-through
-      --migrate)  MIGRATE=true  ;;
-      -c)                       ;& # fall-through
-      --create)   CREATE=true   ;;
-      -C)                       ;& # fall-through
-      --clobber)  CLOBBER=true  ;;
-      --)                       ;; # ignore
-       *)         checkName "$1" || return 1
+      -m)                            ;& # fall-through
+      --migrate)  MIGRATE=true       ;;
+      -l)                            ;& # fall-through
+      --clone)    CLONE=true
+                  shift
+                  local CLONE_URL
+                  CLONE_URL="$1"
+                  shift
+                  local CLONE_BRANCH
+                  CLONE_BRANCH="$1" ;;
+      -c)                           ;& # fall-through
+      --create)   CREATE=true       ;;
+      -C)                           ;& # fall-through
+      --clobber)  CLOBBER=true      ;;
+      --)                           ;; # ignore
+       *)         checkName "$1"    || return 1
                   if [[ -z $REPO ]]
                   then
                     REPO=$1
                   else
                     error 'More than one Git-parallel repository were specified.'
                     return 2
-                  fi            ;;
+                  fi                ;;
     esac
     shift
   done
@@ -1104,8 +1159,11 @@ EOF
     errcat <<'EOF'
 There exists an active Git repository that is not a Git-parallel repository. By
 switching to a Git-parallel repository, the contents of the active Git
-repository WILL BE LOST! To authorize the removal, specify the -C / --clobber
-option.
+repository WILL BE LOST!
+
+To authorize the removal, specify the -C / --clobber option. To migrate the
+active Git repository to a new Git-parallel repository, specify the -c /
+--create and -m / --migrate options.
 EOF
     return 6
   fi
@@ -1126,8 +1184,11 @@ EOF
   if $CREATE
   then
     export OLDPWD
-    (cd "$OLDPWD" &&
-    create `$MIGRATE && printf '%s\n' --migrate` $REPO) || return 7
+    (cd "$OLDPWD"
+    local CREATE_PARAMETERS=()
+    $MIGRATE && CREATE_PARAMETERS+=(--migrate)
+    $CLONE && CREATE_PARAMETERS+=(--clone "$CLONE_URL" "$CLONE_BRANCH")
+    create "${CREATE_PARAMETERS[@]}" $REPO) || return 7
   fi
 
   if [[ ! -z "$ACTIVE" ]]
