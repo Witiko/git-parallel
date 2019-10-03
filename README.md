@@ -12,7 +12,7 @@ With Git Parallel, several Git repositories can live inside a single directory.
 [Standard Generalized Markup Language (SGML)][sgml] is a more complex precursor
 to the [Extensible Markup Language (XML)][xml] commonly used nowadays. CONCUR
 was a feature of SGML that enabled [parallel markup][]. Parallel markup allows
-the creation of documents that shared data, such as the following two documents
+the creation of documents that share data, such as the following two documents
 that capture the dramatic and metrical views of Ibsen's [Peer Gynt][]:
 
     <(V)line>
@@ -30,15 +30,15 @@ that capture the dramatic and metrical views of Ibsen's [Peer Gynt][]:
        It’s a lie from first to last.</(S)speech>
     </(V)line>
 
- [sgml]: https://en.wikipedia.org/wiki/Standard_Generalized_Markup_Language (Standard Generalized Markup Language (SGML))
- [xml]: https://en.wikipedia.org/wiki/XML (Extensible Markup Language (XML))
- [parallel markup]: https://en.wikipedia.org/wiki/Overlapping_markup (Overlapping markup)
- [peer gynt]: https://ebooks.adelaide.edu.au/i/ibsen/henrik/peer/ (Peer Gynt, by Henrik Ibsen)
+ [sgml]: https://en.wikipedia.org/wiki/Standard_Generalized_Markup_Language "Standard Generalized Markup Language (SGML)"
+ [xml]: https://en.wikipedia.org/wiki/XML "Extensible Markup Language (XML)"
+ [parallel markup]: https://en.wikipedia.org/wiki/Overlapping_markup "Overlapping markup"
+ [peer gynt]: https://ebooks.adelaide.edu.au/i/ibsen/henrik/peer/ "Peer Gynt, by Henrik Ibsen"
 
 Continuing in the same philosophy, Git Parallel is a tool that enables parallel
-Git repositories. Much like the dramatic and metrical view of Ibsen's play,
-parallel Git repositories are also independent, but they share the same
-directory structure:
+Git repositories. Like the dramatic and metrical view of Ibsen's play, parallel
+Git repositories are also independent, but they share the same data (directory
+structure):
 
     $ tree ~/data-repository
     /home/pgynt/data-repository/
@@ -66,11 +66,11 @@ directory structure:
     $ gp checkout code
     $ tree
     .
+    ├── Makefile
     ├── .git
     ├── .gitparallel
     │   ├── code -> ../git
     │   └── data
-    ├── Makefile
     ├── posts
     │   ├── 2019-09-16_aase-scolds-peer.md
     │   ├── 2019-09-16_peer-confronts-smith.md
@@ -89,22 +89,25 @@ directory structure:
  * `flock` from [`util-linux`](/karelzak/util-linux) (optional)
  * `fmt` and `readlink` from [GNU Coreutils][] (optional)
 
- [bash]: https://www.gnu.org/software/bash/ (GNU Bash)
- [GIT]: https://git-scm.com/ (Git)
- [gnu coreutils]: http://www.gnu.org/software/coreutils/coreutils.html (Coreutils – GNU core utilities)
+ [bash]: https://www.gnu.org/software/bash/ "GNU Bash"
+ [GIT]: https://git-scm.com/ "Git"
+ [gnu coreutils]: http://www.gnu.org/software/coreutils/coreutils.html "Coreutils – GNU core utilities"
 
 ## Installation
 
- 1. For barebones functionality, it is sufficient to copy the file `gp` into
-    one of the directories in your `PATH` environment variable.
- 2. To make Git-parallel accessible as a Git subcommand `git parallel`, copy
-    the file `git-parallel` into one of the directories in your `PATH` variable.
+ 1. Copy the `gp` file into one of the directories in your `PATH` environment
+    variable.
+
+ 2. To make Git-parallel accessible as a `git parallel` Git subcommand, copy
+    the `git-parallel` file into one of the directories in your `PATH`
+    variable.
+
  3. To enable Bash command completion for Git-parallel, the
-    `gp.bash-completion` script needs to be sourced, when bash starts. This can
-    be done at the system level by moving the script into the
-    `/etc/bash-completion.d/` directory, or on a per-user basis by including a
-    line such as
+    `gp.bash-completion` file needs to be sourced, when bash starts. You can do
+    this at the system level by copying the `gp.bash-completion` file into the
+    `/etc/bash-completion.d/` directory. You can also do this on a per-user
+    basis by copying the `gp.bash-completion` file to a directory `/path/to/`,
+    and then including a line such as the following in the user's `~/.bashrc`
+    configuration file:
 
-        source path/to/gp.bash-completion
-
-    into the `~/.bashrc` configuration file.
+        source /path/to/gp.bash-completion
